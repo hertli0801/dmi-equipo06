@@ -17,7 +17,7 @@
     },
     {
       "studentId": "Oscar Yael Hernandez Hernández",
-      "commitShas": ["b238e47a63cfabab5d611d0e0b3c39592f584b63"],
+      "commitShas": ["293c695276d1d6f3d3b461cce931bb087f5aad8e"],
       "files": ["docs/evidence-OSCAR.txt"],
       "tests": ["course-tests/smoke.test.tsx"],
       "reviews": [],
