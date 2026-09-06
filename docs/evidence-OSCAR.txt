@@ -1,0 +1,15 @@
+npm run typecheck
+
+> dmi-react-native-starter@1.0.0 typecheck
+> tsc --noEmit
+
+npm run lint
+
+> dmi-react-native-starter@1.0.0 lint
+> eslint .
+
+npm run test:smoke
+
+> dmi-react-native-starter@1.0.0 test:smoke
+> jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand course-tests/smoke.test.tsx
+
