@@ -1,0 +1,3 @@
+Evidencia de Alberto Herrera - Semana 1 CampusOps
+Ejecuté make setup y make feedback en macOS con Node 22.22.0 vía nvm.
+Resultado: typecheck OK, lint OK, test:smoke PASS (1/1), bundle:release generado correctamente.
