@@ -1,0 +1,84 @@
+ne and resolves backend state (4983 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       1 passed, 1 total
+Snapshots:   0 total
+Time:        75.785 s
+Ran all test suites matching /course-tests\/smoke.test.tsx/i.
+npm run audit:ci
+
+> dmi-react-native-starter@1.0.0 audit:ci
+> npm audit --omit=dev --audit-level=critical
+
+# npm audit report
+
+@xmldom/xmldom  <=0.8.14 || 0.9.0 - 0.9.11
+Severity: moderate
+xmldom: XML fragment injection via invalid EntityReference.nodeName during requireWellFormed serialization - https://github.com/advisories/GHSA-6gmq-8vp8-gcm6
+xmldom: XML fragment injection via invalid EntityReference.nodeName during requireWellFormed serialization - https://github.com/advisories/GHSA-6gmq-8vp8-gcm6
+fix available via `npm audit fix`
+node_modules/@xmldom/xmldom
+node_modules/plist/node_modules/@xmldom/xmldom
+
+1 moderate severity vulnerability
+
+PS C:\Users\Usuario\Desktop\dmi-e06\dmi-equipo06> wsl 
+usuario@OSCAR-HERNANDEZ10:/mnt/c/Users/Usuario/Desktop/dmi-e06/dmi-equipo06$ make feedback
+npm run typecheck
+
+> dmi-react-native-starter@1.0.0 typecheck
+> tsc --noEmit
+
+npm run lint
+
+> dmi-react-native-starter@1.0.0 lint
+> eslint .
+
+npm run test:smoke
+
+> dmi-react-native-starter@1.0.0 test:smoke
+> jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand course-tests/smoke.test.tsx
+
+ PASS  course-tests/smoke.test.tsx (60.666 s)
+  ✓ renders the reproducible baseline and resolves backend state (4983 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       1 passed, 1 total
+Snapshots:   0 total
+Time:        75.785 s
+Ran all test suites matching /course-tests\/smoke.test.tsx/i.
+npm run audit:ci
+
+> dmi-react-native-starter@1.0.0 audit:ci
+> npm audit --omit=dev --audit-level=critical
+
+# npm audit report
+
+@xmldom/xmldom  <=0.8.14 || 0.9.0 - 0.9.11
+Severity: moderate
+xmldom: XML fragment injection via invalid EntityReference.nodeName during requireWellFormed serialization - https://github.com/advisories/GHSA-6gmq-8vp8-gcm6
+xmldom: XML fragment injection via invalid EntityReference.nodeName during requireWellFormed serialization - https://github.com/advisories/GHSA-6gmq-8vp8-gcm6
+fix available via `npm audit fix`
+node_modules/@xmldom/xmldom
+node_modules/plist/node_modules/@xmldom/xmldom
+
+1 moderate severity vulnerability
+
+To address all issues, run:
+  npm audit fix
+npm run bundle:release
+
+> dmi-react-native-starter@1.0.0 bundle:release
+> expo export --platform android --output-dir dist/export
+
+Starting Metro Bundler
+
+Android Bundled 104840ms index.ts (581 modules)
+
+› android bundles (1):
+_expo/static/js/android/index-0f63771edc03a8b8f3059e004167ff68.hbc (1.4MB)
+
+› Files (1):
+metadata.json (150B)
+
+Exported: dist/export
