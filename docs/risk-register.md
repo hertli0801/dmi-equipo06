@@ -1,14 +1,11 @@
 # Registro de riesgos — CampusOps
 
-> Registren exactamente tres riesgos y ordénenlos del más al menos prioritario.
-
 | Prioridad | Riesgo | Probabilidad | Impacto | Mitigación | Cómo comprobar la mitigación |
 |---:|---|---|---|---|---|
-| 1 | [riesgo] | [baja/media/alta y motivo] | [bajo/medio/alto y motivo] | [acción] | [evidencia observable] |
-| 2 | [riesgo] | [baja/media/alta y motivo] | [bajo/medio/alto y motivo] | [acción] | [evidencia observable] |
-| 3 | [riesgo] | [baja/media/alta y motivo] | [bajo/medio/alto y motivo] | [acción] | [evidencia observable] |
+| 1 | Diferencias de entorno de desarrollo entre integrantes (Windows/WSL, macOS) producen resultados distintos al correr las mismas pruebas, generando falsos negativos. | Alta: ya se observó directamente en el equipo — la misma prueba (`npm run test:smoke`) tardó más de 60 segundos en Windows/WSL con el proyecto en `/mnt/c/` (excediendo el timeout de 5000ms), y menos de 2 segundos en Linux nativo dentro del mismo WSL. | Medio: no afecta la lógica de la app, pero puede hacer que un integrante crea que el proyecto está roto cuando el problema es solo de su entorno, retrasando el trabajo. | Documentar en el equipo que el proyecto debe ejecutarse desde el sistema de archivos nativo (Linux o macOS), no desde `/mnt/c/` en WSL, y confirmarlo en el README o guía interna del equipo. | Repetir `npm run test:smoke` en `/mnt/c/...` (falla por timeout) y en `~/proyectos/...` dentro de WSL (pasa en segundos) con el mismo commit, y registrar ambos tiempos como evidencia. |
+| 2 | Conflicto de datos al reasignar una incidencia mientras un técnico la atiende sin conexión (dos cambios simultáneos sobre el mismo campo `work`). | Alta: el escenario de trabajo sin conexión es explícito en el diseño de CampusOps y ocurrirá en el uso normal del sistema, no es un caso extremo. | Alto: sin manejo correcto, se puede perder la reasignación del coordinador o el progreso del técnico, generando incidencias mal atendidas o duplicadas. | Documentar y, en semanas posteriores, implementar detección de conflicto por versión base antes de aplicar un cambio remoto, notificando al usuario en vez de sobrescribir silenciosamente. | Prueba que simule reasignación concurrente con cambio de estado local y verifique que ambos cambios se detectan y ninguno se pierde silenciosamente. |
+| 3 | Exposición accidental de datos sensibles (ubicación, fotos, identificadores personales) en registros técnicos (logs) durante el diagnóstico de fallas. | Media: el diseño de CampusOps ya restringe qué debe registrarse en logs, pero un error humano al depurar (agregar un `console.log` con datos completos) es un descuido común. | Alto: si ocurriera con datos reales, expondría información personal; aunque el proyecto usa datos ficticios, la práctica debe ser la misma que en producción. | Revisar antes de cada commit que los logs y evidencias solo contengan identificadores sintéticos, código de error y duración, sin nombres, ubicación ni fotos, siguiendo las restricciones de `CAMPUSOPS.md`. | Revisión manual de los archivos de evidencia (`baseline.json`, capturas) antes de cada commit, confirmando ausencia de datos reales o sensibles. |
 
 ## Riesgo que atenderíamos primero
 
-[Indiquen cuál y justifiquen la decisión.]
-
+Atenderíamos primero el riesgo de diferencias de entorno de desarrollo porque ya se materializó de forma concreta y verificable en el equipo, bloqueando el avance de una integrante antes de haber tocado siquiera el código de CampusOps. Su probabilidad es alta (ya ocurrió) y, aunque su impacto individual es medio, retrasa la ejecución de todos los demás criterios de la actividad si no se resuelve de inmediato.
