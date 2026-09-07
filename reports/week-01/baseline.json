@@ -1,23 +1,22 @@
 {
-  "_instructions": "Eliminen este campo cuando terminen. Los demás campos deben contener evidencia real y commitSha debe ser un SHA Git completo de 40 caracteres.",
   "schemaVersion": 1,
   "week": 1,
-  "commitSha": "REEMPLAZAR_CON_SHA_DEL_COMMIT_DE_CODIGO_Y_DOCUMENTOS",
-  "generatedAt": "REEMPLAZAR_CON_FECHA_HORA_ISO_8601",
+  "commitSha": "3bec8b2ef793bb7d89c95f7187b6255bb913440d",
+  "generatedAt": "2026-09-06T23:30:00-06:00",
   "checks": [
     {
       "id": "falla-controlada",
       "status": "fail",
       "scenarioType": "failure",
-      "command": "npm run test:smoke",
-      "evidence": "REEMPLAZAR_CON_SINTOMA_OBSERVADO_Y_CAUSA_IDENTIFICADA"
+      "command": "npm run backend:self-test",
+      "evidence": "Sintoma: al ejecutar 'npm run backend:self-test' con course-backend/server.mjs modificado (contractVersion: 2 en el endpoint /health), el proceso termino con 'Error: health contract mismatch' en course-backend/self-test.mjs:31. Causa: self-test.mjs valida explicitamente 'if (health.contractVersion !== 1) throw new Error(...)', y src/api/courseBackend.ts tambien exige contractVersion === 1; al cambiar el valor que devuelve el backend a 2, se rompio el contrato esperado por ambos clientes (el self-test y la app)."
     },
     {
       "id": "correccion-verificada",
       "status": "pass",
       "scenarioType": "nominal",
-      "command": "npm run test:smoke",
-      "evidence": "REEMPLAZAR_CON_RESULTADO_OBSERVABLE_DESPUES_DE_CORREGIR"
+      "command": "npm run backend:self-test",
+      "evidence": "Al revertir contractVersion de 2 a 1 en course-backend/server.mjs (linea 36), 'npm run backend:self-test' volvio a terminar exitosamente con el mensaje 'Controlled backend self-test passed.', confirmando que el contrato de version quedo restaurado y que ningun otro caso (roles, reasignacion, idempotencia, geocoding) se vio afectado por el cambio."
     }
   ]
 }

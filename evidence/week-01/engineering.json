@@ -1,20 +1,20 @@
 {
-  "_instructions": "Eliminen este campo cuando terminen. Comparen alternativas reales y relacionen la decisión con una comprobación ejecutada.",
   "schemaVersion": 1,
   "week": 1,
-  "commitSha": "REEMPLAZAR_CON_SHA_DEL_COMMIT_DE_CODIGO_Y_DOCUMENTOS",
-  "decision": "REEMPLAZAR_CON_LA_DECISION_DE_ALCANCE_RIESGO_O_ACEPTACION",
+  "commitSha": "3bec8b2ef793bb7d89c95f7187b6255bb913440d",
+  "decision": "El equipo decide que todos los integrantes que usen Windows deben ejecutar el proyecto desde el sistema de archivos nativo de WSL (ej. ~/proyectos/), no desde una carpeta montada de Windows (/mnt/c/...), como requisito para considerar el proyecto instalado y verificado correctamente.",
   "alternatives": [
-    "REEMPLAZAR_CON_PRIMERA_ALTERNATIVA_REAL",
-    "REEMPLAZAR_CON_SEGUNDA_ALTERNATIVA_REAL"
+    "Aumentar el timeout de Jest en la configuracion del proyecto para que la prueba smoke.test.tsx tolerara los tiempos lentos de /mnt/c/ en WSL sin marcar fallo.",
+    "Dejar que cada integrante trabajara donde le resultara mas comodo (incluyendo /mnt/c/ en WSL), sin exigir una ubicacion especifica del proyecto.",
+    "Migrar el proyecto de trabajo al sistema de archivos nativo de Linux dentro de WSL (~/proyectos/), sin modificar ninguna configuracion de pruebas."
   ],
-  "tradeoff": "REEMPLAZAR_CON_EL_BENEFICIO_Y_EL_COSTO_DE_LA_DECISION",
-  "requirementIds": ["AC-02", "AC-04"],
+  "tradeoff": "Beneficio: al migrar a Linux nativo, el mismo comando (npm run test:smoke) paso de tardar 63-78 segundos y fallar por timeout, a tardar 1.5-2.5 segundos y pasar consistentemente, sin tocar el codigo, las pruebas ni su configuracion. Costo: cada integrante con Windows debe repetir la instalacion (git clone o copia) dentro de su entorno WSL nativo, lo cual toma tiempo adicional una sola vez y requiere que sepan diferenciar su carpeta de Windows de su carpeta de Linux al usar VS Code y la terminal.",
+  "requirementIds": ["AC-01", "AC-04"],
   "verification": [
     {
-      "command": "REEMPLAZAR_CON_COMANDO_EJECUTADO",
-      "result": "REEMPLAZAR_CON_RESULTADO_OBSERVADO",
-      "evidence": "REEMPLAZAR_CON_ARCHIVO_REPORTE_O_SALIDA_QUE_LO_DEMUESTRA"
+      "command": "npm run test:smoke",
+      "result": "En /mnt/c/Users/lilih/DMI/student-starter: FAIL por 'Exceeded timeout of 5000 ms for a test' (63.513s totales). En ~/proyectos/dmi-equipo06 (Linux nativo dentro de WSL), con el mismo codigo: PASS en 1.581s.",
+      "evidence": "Salida de terminal de ambas ejecuciones, y el riesgo documentado en docs/risk-register.md (fila de prioridad 1, 'Diferencias de entorno de desarrollo')."
     }
   ]
 }
