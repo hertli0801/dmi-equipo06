@@ -1,41 +1,40 @@
 {
-  "_instructions": "Eliminen este campo cuando terminen. Conserven exactamente tres integrantes y usen SHA Git completos de commits creados por cada persona.",
   "schemaVersion": 1,
   "week": 1,
-  "teamId": "REEMPLAZAR_CON_ID_DEL_EQUIPO",
+  "teamId": "9A-E06",
   "members": [
     {
-      "studentId": "REEMPLAZAR_INTEGRANTE_1",
-      "commitShas": ["REEMPLAZAR_CON_SHA_COMPLETO"],
-      "files": ["REEMPLAZAR_CON_ARCHIVO_TRABAJADO"],
+      "studentId": "3523110560",
+      "commitShas": ["6647daf44427c607143fafa09fc2647dad81c766"],
+      "files": ["docs/problem-definition.md", "docs/risk-register.md"],
       "tests": [],
-      "reviews": [],
-      "prediction": "REEMPLAZAR_CON_LO_QUE_ESPERABA_OBSERVAR",
-      "command": "REEMPLAZAR_CON_EL_COMANDO_EJECUTADO",
-      "observedResult": "REEMPLAZAR_CON_LO_QUE_OCURRIO",
-      "explanation": "REEMPLAZAR_CON_LA_EXPLICACION_TECNICA"
+      "reviews": ["docs/CAMPUSOPS.md"],
+      "prediction": "Esperaba que, al redactar los criterios de aceptacion y el registro de riesgos siguiendo el flujo de estados de CAMPUSOPS.md, make feedback siguiera pasando sin errores, ya que estos archivos son documentacion y no afectan al codigo.",
+      "command": "make feedback",
+      "observedResult": "typecheck, lint y test:smoke pasaron sin errores (PASS en 2.491s) despues de agregar el contenido a problem-definition.md y risk-register.md.",
+      "explanation": "Los documentos son de solo lectura para el pipeline de comprobacion; no alteran el codigo ni las pruebas, por lo que no se esperaba ni se observo ningun efecto sobre make feedback. Ademas, documente como riesgo prioritario la diferencia de entorno Windows/WSL vs Linux nativo que descubri al migrar mi copia de trabajo, con tiempos reales de ejecucion como evidencia (63-78s en /mnt/c/ contra ~2s en Linux nativo)."
     },
     {
-      "studentId": "Oscar Yael Hernandez Hernández",
-      "commitShas": ["293c695276d1d6f3d3b461cce931bb087f5aad8e"],
-      "files": ["docs/evidence-OSCAR.txt"],
+      "studentId": "3523110151",
+      "commitShas": ["cc27a6862ea3366a263bf8f45260417804c8ac4d"],
+      "files": ["evidence/week-01/individual.json"],
       "tests": ["course-tests/smoke.test.tsx"],
       "reviews": [],
-      "prediction": "Esperaba que make feedback ejecutara la verificacion con resultado PASS sin fallos de compilacion.",
+      "prediction": "Esperaba que make feedback ejecutara la verificacion con resultado PASS sin fallos de compilacion en su entorno Windows/WSL.",
       "command": "make feedback",
-      "observedResult": "Ejecución exitosa PASS. Jest aprobó 1 test, typecheck y lint pasaron sin errores.",
-      "explanation": "Confirma la reproducibilidad del entorno local en WSL utilizando Node.js."
+      "observedResult": "Ejecucion exitosa PASS. Jest aprobo 1 test (4983 ms), typecheck y lint pasaron sin errores, aunque el tiempo total fue de 75.785s.",
+      "explanation": "Confirma la reproducibilidad del entorno del starter en Windows/WSL usando Node.js 22.22.0, aunque con tiempos de ejecucion notablemente mas altos que en Linux nativo, consistente con el riesgo de entorno documentado por el equipo."
     },
     {
-      "studentId": "REEMPLAZAR_INTEGRANTE_3",
-      "commitShas": ["REEMPLAZAR_CON_SHA_COMPLETO"],
-      "files": ["REEMPLAZAR_CON_ARCHIVO_TRABAJADO"],
-      "tests": [],
+      "studentId": "3523110817",
+      "commitShas": ["14e7ccfc1ee7721cdbacef1aca4a31ae103d2ace"],
+      "files": ["docs/evidence-ALBERTO.txt"],
+      "tests": ["course-tests/smoke.test.tsx"],
       "reviews": [],
-      "prediction": "REEMPLAZAR_CON_LO_QUE_ESPERABA_OBSERVAR",
-      "command": "REEMPLAZAR_CON_EL_COMANDO_EJECUTADO",
-      "observedResult": "REEMPLAZAR_CON_LO_QUE_OCURRIO",
-      "explanation": "REEMPLAZAR_CON_LA_EXPLICACION_TECNICA"
+      "prediction": "Esperaba que make setup y make feedback funcionaran sin problemas en macOS con Node 22.22.0 via nvm, dado que macOS tiene acceso nativo al sistema de archivos.",
+      "command": "make setup && make feedback",
+      "observedResult": "typecheck OK, lint OK, test:smoke PASS (1/1), bundle:release generado correctamente, sin los problemas de timeout observados en Windows/WSL.",
+      "explanation": "Confirma que macOS no sufre el problema de lentitud de acceso a archivos que si afecta a Windows al ejecutar el proyecto desde /mnt/c/, validando la causa raiz documentada en risk-register.md."
     }
   ]
 }
