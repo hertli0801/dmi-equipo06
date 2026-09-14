@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "week": 2,
+  "commitSha": "REEMPLAZAR_CON_TU_SHA_DEL_COMMIT_FINAL",
+  "generatedAt": "2026-09-14T05:30:00Z",
+  "checks": [
+    {
+      "id": "ui-imports-infrastructure-direct",
+      "status": "fail",
+      "scenarioType": "failure",
+      "command": "node tools/check-architecture-boundaries.mjs",
+      "evidence": "FAIL: UI importa directo de infrastructure, saltándose application:\n  src\\ui\\screens\\IncidentListScreen.tsx:7: import { InMemoryIncidentRepository } from '../../infrastructure/incidents/InMemoryIncidentRepository'; (exit code 1)"
+    },
+    {
+      "id": "ui-imports-application-only",
+      "status": "pass",
+      "scenarioType": "nominal",
+      "command": "node tools/check-architecture-boundaries.mjs",
+      "evidence": "PASS: ningún archivo en src/ui importa directo de infrastructure. (exit code 0)"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+graph TB
+    ui["ui: pantallas (lista, detalle) — reportante, técnico, coordinador"]
+    application["application: casos de uso (listIncidents, getIncidentDetail)"]
+    domain["domain: modelo Incidencia + contrato IncidentRepository"]
+    infrastructure["infrastructure: InMemoryIncidentRepository (fake)"]
+    session["session (futuro): autenticación y roles"]
+    persistence["persistence (futuro): almacenamiento real"]
+    location["location (futuro): proveedor de ubicación"]
+
+    ui --> application
+    application --> domain
+    infrastructure --> domain
+    session --> application
+    persistence --> domain
+    location --> application
