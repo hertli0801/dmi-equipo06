@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "week": 1,
-  "commitSha": "e6f114b7f5180d256e6b1e2e05275e85f143dc29",
+  "commitSha": "5685c4f0d21b92c6f61be29028dd2a9a97ccc7c9",
   "decision": "El equipo decide que todos los integrantes que usen Windows deben ejecutar el proyecto desde el sistema de archivos nativo de WSL (ej. ~/proyectos/), no desde una carpeta montada de Windows (/mnt/c/...), como requisito para considerar el proyecto instalado y verificado correctamente.",
   "alternatives": [
     "Aumentar el timeout de Jest en la configuracion del proyecto para que la prueba smoke.test.tsx tolerara los tiempos lentos de /mnt/c/ en WSL sin marcar fallo.",
