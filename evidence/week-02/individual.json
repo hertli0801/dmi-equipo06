@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "week": 2,
+  "teamId": "9A-E06",
+  "members": [
+    {
+      "studentId": "3523110151",
+      "commitShas": ["deb9ea3c5a2aa09b9026db6bf3d77618627fdbe4"],
+      "files": [
+        "docs/architecture.mmd",
+        "tools/check-architecture-boundaries.mjs",
+        "reports/week-02/dependencies.json"
+      ],
+      "tests": ["tools/check-architecture-boundaries.mjs"],
+      "reviews": [],
+      "prediction": "Esperaba que al agregar un import directo de InMemoryIncidentRepository en IncidentListScreen.tsx (saltandose application), el chequeo de limites de arquitectura fallara, y que al quitarlo y volver a llamar solo a application, el mismo comando pasara sin errores.",
+      "command": "node tools/check-architecture-boundaries.mjs",
+      "observedResult": "Con el import directo a infrastructure: FAIL, exit code 1, senalando la linea exacta del import en IncidentListScreen.tsx (linea 7). Despues de corregir el import para pasar por application: PASS, exit code 0.",
+      "explanation": "Confirma que la regla de oro de la arquitectura (UI nunca importa directo de infrastructure) es detectable automaticamente con un chequeo simple de imports, y que el codigo actual de la UI (una vez corregido) respeta esa separacion, consistente con lo que describe docs/architecture.mmd y el ADR-001."
+    }
+  ]
+}
