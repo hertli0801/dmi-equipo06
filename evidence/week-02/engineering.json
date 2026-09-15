@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "week": 2,
+  "commitSha": "570e759394ab1552ac6c5767b56159e9b88c3401",
+  "decision": "El equipo separa CampusOps en 4 capas (UI, Application, Domain, Infrastructure) con inyeccion manual de dependencias, en vez de usar un patron MVVM con repositorio inyectado, para que la UI nunca dependa directamente de los detalles de infraestructura y pueda sustituirse el origen de los datos sin modificar las pantallas.",
+  "alternatives": [
+    "Arquitectura en capas (UI/Application/Domain/Infrastructure) con inyeccion manual de dependencias: la UI solo conoce Application, que a su vez solo conoce un contrato definido en Domain; Infrastructure implementa ese contrato.",
+    "MVVM con repositorio inyectado: la View se conecta a un ViewModel que mantiene el estado de una pantalla especifica y usa un repositorio para obtener datos, apoyandose normalmente en librerias de manejo de estado reactivo."
+  ],
+  "tradeoff": "Beneficio: los 4 nombres de la arquitectura en capas coinciden directamente con los limites que pide la actividad, no requiere instalar ninguna libreria adicional de manejo de estado, y permite probar Application de forma aislada sin depender de ninguna pantalla real. Costo: el equipo debe escribir manualmente el cableado que conecta cada capa con la siguiente (App.tsx actua como composition root), en vez de que una libreria de MVVM lo automatice; para el tamano actual del esqueleto (lista y detalle con datos ficticios) este costo es bajo frente al beneficio de mantener las capas desacopladas.",
+  "requirementIds": ["AC-02", "AC-04"],
+  "verification": [
+    {
+      "command": "node tools/check-architecture-boundaries.mjs",
+      "result": "PASS: ningun archivo en src/ui importa directo de infrastructure, confirmando que el codigo respeta la decision documentada en el ADR-001 y el diagrama docs/architecture.mmd.",
+      "evidence": "reports/week-02/dependencies.json y tools/check-architecture-boundaries.mjs"
+    },
+    {
+      "command": "make feedback",
+      "result": "typecheck, lint y test:smoke (PASS) terminan sin errores con el esqueleto de 4 capas implementado por el equipo.",
+      "evidence": "salida de make feedback en la terminal del equipo"
+    }
+  ]
+}

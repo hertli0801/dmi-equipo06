@@ -17,6 +17,37 @@
       "command": "node tools/check-architecture-boundaries.mjs",
       "observedResult": "Con el import directo a infrastructure: FAIL, exit code 1, senalando la linea exacta del import en IncidentListScreen.tsx (linea 7). Despues de corregir el import para pasar por application: PASS, exit code 0.",
       "explanation": "Confirma que la regla de oro de la arquitectura (UI nunca importa directo de infrastructure) es detectable automaticamente con un chequeo simple de imports, y que el codigo actual de la UI (una vez corregido) respeta esa separacion, consistente con lo que describe docs/architecture.mmd y el ADR-001."
+    },
+    {
+      "studentId": "3523110560",
+      "commitShas": ["5a24666c1e20648ba408ced73f18621280199520"],
+      "files": ["docs/adr/ADR-001-architecture.md"],
+      "tests": [],
+      "reviews": ["docs/architecture.mmd", "src/domain/incident/IncidentRepository.ts"],
+      "prediction": "Esperaba que, al documentar la decision de separar el codigo en 4 capas (UI/Application/Domain/Infrastructure) antes de que el equipo escribiera codigo, el esqueleto final de Alberto y el diagrama de Oscar coincidieran con esos mismos 4 nombres y con la regla de que UI nunca importa infrastructure directo.",
+      "command": "node tools/check-architecture-boundaries.mjs",
+      "observedResult": "PASS: ningun archivo en src/ui importa directo de infrastructure. El codigo real coincide con la decision documentada en el ADR-001 y con el diagrama docs/architecture.mmd.",
+      "explanation": "Confirma que la decision de arquitectura documentada en el ADR se reflejo correctamente en el codigo del equipo: los tres artefactos (ADR, diagrama, codigo) describen la misma separacion de responsabilidades, cumpliendo con AC-02."
+    },
+    {
+      "studentId": "3523110817",
+      "commitShas": ["f96f1ac97e1175d53b324bdfea41b530f4a01d0e"],
+      "files": [
+        "src/domain/incident/Incident.ts",
+        "src/domain/incident/IncidentRepository.ts",
+        "src/application/incidents/listIncidents.ts",
+        "src/application/incidents/getIncidentDetail.ts",
+        "src/infrastructure/incidents/InMemoryIncidentRepository.ts",
+        "src/ui/screens/IncidentListScreen.tsx",
+        "src/ui/screens/IncidentDetailScreen.tsx",
+        "App.tsx"
+      ],
+      "tests": [],
+      "reviews": ["make feedback"],
+      "prediction": "Esperaba que, al construir el esqueleto siguiendo las 4 capas definidas en el ADR (domain, application, infrastructure, ui) y usando App.tsx como composition root para inyectar el repositorio fake, la app pudiera mostrar una lista de incidencias ficticias y su detalle sin que UI importara infrastructure directamente.",
+      "command": "make feedback",
+      "observedResult": "typecheck, lint y test:smoke pasaron sin errores despues de agregar las 8 archivos nuevos (domain, application, infrastructure, UI y App.tsx actualizado); la app renderiza la lista y el detalle con datos ficticios del repositorio en memoria.",
+      "explanation": "El esqueleto implementa exactamente el contrato IncidentRepository definido en domain, con InMemoryIncidentRepository en infrastructure cumpliendolo con datos ficticios, y las pantallas de UI llaman unicamente a los casos de uso de application (listIncidents, getIncidentDetail), sin conocer la implementacion real de infrastructure, tal como describe el ADR-001 y el diagrama de arquitectura."
     }
   ]
 }
