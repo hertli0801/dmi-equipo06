@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "week": 2,
-  "commitSha": "5685c4f0d21b92c6f61be29028dd2a9a97ccc7c9",
+  "commitSha": "054aba2d87e670e3247c67432aec266583cbde33",
   "decision": "El equipo separa CampusOps en 4 capas (UI, Application, Domain, Infrastructure) con inyeccion manual de dependencias, en vez de usar un patron MVVM con repositorio inyectado, para que la UI nunca dependa directamente de los detalles de infraestructura y pueda sustituirse el origen de los datos sin modificar las pantallas.",
   "alternatives": [
     "Arquitectura en capas (UI/Application/Domain/Infrastructure) con inyeccion manual de dependencias: la UI solo conoce Application, que a su vez solo conoce un contrato definido en Domain; Infrastructure implementa ese contrato.",
