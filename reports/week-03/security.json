@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "week": 3,
+  "commitSha": "eb2d5ffe61d29f0164f4d41b8df49941b65100ed",
+  "generatedAt": "2026-09-21T16:54:07Z",
+  "checks": [
+    {
+      "id": "credenciales-sin-validar",
+      "status": "fail",
+      "scenarioType": "failure",
+      "command": "node scripts/check-auth.mjs",
+      "evidence": "Con la validación de Authorization comentada (líneas 46-48 de course-backend/server.mjs), GET /v1/resources sin token y con token inválido devolvió 200 en vez de 401; el script terminó con exit code 1."
+    },
+    {
+      "id": "credenciales-validadas",
+      "status": "pass",
+      "scenarioType": "nominal",
+      "command": "node scripts/check-auth.mjs",
+      "evidence": "Tras restaurar server.mjs con git checkout, GET /v1/resources devolvió 401 sin token y con token inválido, y 200 con course-valid-token; GET /v1/incidents sin token devolvió 401; exit code 0."
+    }
+  ]
+}
