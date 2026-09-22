@@ -5,14 +5,14 @@
   "members": [
     {
       "studentId": "3523110151",
-      "commitShas": ["REEMPLAZAR"],
-      "files": ["REEMPLAZAR"],
-      "tests": ["REEMPLAZAR"],
-      "reviews": ["REEMPLAZAR"],
-      "prediction": "REEMPLAZAR",
-      "command": "REEMPLAZAR",
-      "observedResult": "REEMPLAZAR",
-      "explanation": "REEMPLAZAR"
+"commitShas": ["3b050a656298cf1a663ee03b622e6a98e1d8079a"],
+"files": ["scripts/check-auth.mjs", "reports/week-03/security.json"],
+"tests": ["node scripts/check-auth.mjs"],
+"reviews": [],
+"prediction": "Esperaba que, al remover la validacion de Authorization en server.mjs, GET /v1/resources aceptara peticiones sin token o con token invalido devolviendo 200 en vez de 401.",
+"command": "node scripts/check-auth.mjs",
+"observedResult": "El script confirmo la falla: dos checks fallaron con 200 en vez de 401 (exit code 1). Tras restaurar el archivo, los cuatro checks pasaron con el codigo esperado (exit code 0).",
+"explanation": "Esto demuestra que el control de autenticacion en /v1/resources es real y verificable: su ausencia se detecta automaticamente por codigo de salida, no solo se documenta como idea."
     },
     {
       "studentId": "3523110560",
