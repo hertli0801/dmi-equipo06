@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "week": 3,
+  "commitSha": "101554798881b1ca51e23bf43c3d2928a4a8c66c",
+  "decision": "El equipo decide atender primero la amenaza de exponer credenciales, implementando y verificando la validacion de Authorization en los endpoints protegidos del backend (GET /v1/resources y GET /v1/incidents), porque es la amenaza raiz que habilita a las demas: si se compromete una cuenta (especialmente de coordinador), un atacante puede ejecutar las otras tres amenazas priorizadas desde adentro del sistema con permisos legitimos.",
+  "alternatives": [
+    "Validar el token de sesion en cada peticion al backend, rechazando con 401 cualquier peticion sin token o con token invalido (opcion elegida).",
+    "Confiar en que el cliente (la app movil) nunca envie peticiones sin autenticar, sin validacion adicional del lado del servidor.",
+    "Registrar todas las peticiones sospechosas en logs para revision manual posterior, sin bloquear la peticion en el momento."
+  ],
+  "tradeoff": "Beneficio: validar el token en el servidor detecta y bloquea de inmediato cualquier intento de acceso sin autenticacion valida, sin depender de que el cliente se comporte correctamente; es verificable automaticamente con una prueba que confirme el codigo de estado (401 vs 200). Costo: cada peticion protegida requiere procesar y validar el encabezado de autorizacion, agregando una comprobacion adicional en cada endpoint sensible; se descarto la alternativa de solo confiar en el cliente porque un atacante podria construir peticiones directas al backend sin pasar por la app, y se descarto solo registrar en logs porque eso detecta el problema despues de que ya ocurrio, no lo previene.",
+  "requirementIds": ["AC-02", "AC-03", "AC-04"],
+  "verification": [
+    {
+      "command": "node scripts/check-auth.mjs",
+      "result": "Con la validacion de Authorization removida temporalmente: 2 de 4 checks fallaron (200 en vez de 401), exit code 1. Tras restaurar la validacion: los 4 checks pasaron (401 sin token, 401 con token invalido, 200 con token valido, 401 sin token en /v1/incidents), exit code 0.",
+      "evidence": "reports/week-03/security.json y scripts/check-auth.mjs"
+    }
+  ]
+}

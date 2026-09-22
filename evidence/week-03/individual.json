@@ -5,25 +5,25 @@
   "members": [
     {
       "studentId": "3523110151",
-"commitShas": ["3b050a656298cf1a663ee03b622e6a98e1d8079a"],
-"files": ["scripts/check-auth.mjs", "reports/week-03/security.json"],
-"tests": ["node scripts/check-auth.mjs"],
-"reviews": [],
-"prediction": "Esperaba que, al remover la validacion de Authorization en server.mjs, GET /v1/resources aceptara peticiones sin token o con token invalido devolviendo 200 en vez de 401.",
-"command": "node scripts/check-auth.mjs",
-"observedResult": "El script confirmo la falla: dos checks fallaron con 200 en vez de 401 (exit code 1). Tras restaurar el archivo, los cuatro checks pasaron con el codigo esperado (exit code 0).",
-"explanation": "Esto demuestra que el control de autenticacion en /v1/resources es real y verificable: su ausencia se detecta automaticamente por codigo de salida, no solo se documenta como idea."
+      "commitShas": ["3b050a656298cf1a663ee03b622e6a98e1d8079a"],
+      "files": ["scripts/check-auth.mjs", "reports/week-03/security.json"],
+      "tests": ["node scripts/check-auth.mjs"],
+      "reviews": [],
+      "prediction": "Esperaba que, al remover la validacion de Authorization en server.mjs, GET /v1/resources aceptara peticiones sin token o con token invalido devolviendo 200 en vez de 401.",
+      "command": "node scripts/check-auth.mjs",
+      "observedResult": "El script confirmo la falla: dos checks fallaron con 200 en vez de 401 (exit code 1). Tras restaurar el archivo, los cuatro checks pasaron con el codigo esperado (exit code 0).",
+      "explanation": "Esto demuestra que el control de autenticacion en /v1/resources es real y verificable: su ausencia se detecta automaticamente por codigo de salida, no solo se documenta como idea."
     },
     {
       "studentId": "3523110560",
-      "commitShas": ["REEMPLAZAR"],
-      "files": ["REEMPLAZAR"],
-      "tests": ["REEMPLAZAR"],
-      "reviews": ["REEMPLAZAR"],
-      "prediction": "REEMPLAZAR",
-      "command": "REEMPLAZAR",
-      "observedResult": "REEMPLAZAR",
-      "explanation": "REEMPLAZAR"
+      "commitShas": ["e1a19dbf0ede2c273afa4a83415235a0abd5dcd7"],
+      "files": ["docs/threat-model.md"],
+      "tests": [],
+      "reviews": ["reports/week-03/security.json", "scripts/check-auth.mjs"],
+      "prediction": "Esperaba que, al definir los activos, fronteras de confianza y priorizar las 4 amenazas antes de que el equipo implementara pruebas, Oscar pudiera convertir directamente la amenaza de mayor prioridad (exponer credenciales) en una prueba real sin necesidad de redefinir el modelo.",
+      "command": "grep -i \"activo\\|amenaza\\|control\\|verificacion\" docs/threat-model.md",
+      "observedResult": "El documento contiene las 4 palabras clave requeridas y las 4 amenazas quedaron priorizadas con justificacion; Oscar tomo directamente la amenaza de prioridad 1 (exponer credenciales) del modelo y la convirtio en scripts/check-auth.mjs sin necesidad de ajustar el documento.",
+      "explanation": "Confirma que el modelo de amenazas cumplio su proposito: servir de base real para que el equipo conectara cada amenaza con un control y una prueba verificable, en vez de quedar como una lista aislada de riesgos sin conexion al codigo."
     },
     {
       "studentId": "3523110817",
