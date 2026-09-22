@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "week": 3,
+  "teamId": "10A-E06",
+  "members": [
+    {
+      "studentId": "3523110151",
+      "commitShas": ["REEMPLAZAR"],
+      "files": ["REEMPLAZAR"],
+      "tests": ["REEMPLAZAR"],
+      "reviews": ["REEMPLAZAR"],
+      "prediction": "REEMPLAZAR",
+      "command": "REEMPLAZAR",
+      "observedResult": "REEMPLAZAR",
+      "explanation": "REEMPLAZAR"
+    },
+    {
+      "studentId": "3523110560",
+      "commitShas": ["REEMPLAZAR"],
+      "files": ["REEMPLAZAR"],
+      "tests": ["REEMPLAZAR"],
+      "reviews": ["REEMPLAZAR"],
+      "prediction": "REEMPLAZAR",
+      "command": "REEMPLAZAR",
+      "observedResult": "REEMPLAZAR",
+      "explanation": "REEMPLAZAR"
+    },
+    {
+      "studentId": "3523110817",
+      "commitShas": ["3b050a656298cf1a663ee03b622e6a98e1d8079a"],
+      "files": [
+        ".github/workflows/week-03-ci-amenazas-feedback.yml",
+        "reports/week-03/security.json"
+      ],
+      "tests": ["make feedback", "node scripts/check-auth.mjs"],
+      "reviews": ["course-backend/server.mjs", "course-backend/campusops.mjs", "src/"],
+      "prediction": "Esperaba que make feedback pasara limpio (typecheck, lint, smoke test y bundle de Android) con el codigo acumulado de las 3 semanas, que el workflow de semana 3 declarara solo permissions: contents: read sin banderas que oculten fallos, y que una busqueda de console.log en course-backend/ y src/ no revelara datos sensibles (nombre, correo, ubicacion) registrados en logs.",
+      "command": "make feedback && grep -n \"permissions\\|continue-on-error\\|passWithNoTests\\| || true\" .github/workflows/week-03-ci-amenazas-feedback.yml && grep -rn \"console\\.\" course-backend/ src/ ; node course-backend/server.mjs & node scripts/check-auth.mjs",
+      "observedResult": "make feedback termino con exit code 0: typecheck, lint y test:smoke sin errores; audit:ci sin vulnerabilidades criticas; bundle:release genero dist/export correctamente. El workflow solo declara permissions: contents: read (linea 11) y no contiene || true, continue-on-error ni passWithNoTests en ningun paso; el paso final 'Upload academic evidence' sube reports/week-03/** y evidence/week-03/** con if: always(). grep -rn \"console.\" course-backend/ src/ no devolvio ningun resultado: no hay llamadas a console.log/error dentro de esos directorios. Las unicas apariciones de console.* en el repo estan en scripts/check-auth.mjs y tools/check-architecture-boundaries.mjs, y solo imprimen codigos de estado HTTP y mensajes OK/FALLO, sin datos personales. Ademas levante el backend local (node course-backend/server.mjs) y corri node scripts/check-auth.mjs: exit code 0, con las 4 verificaciones en OK (401 sin token, 401 con token invalido, 200 con token valido en /v1/resources, 401 sin token en /v1/incidents), confirmando que el control de Oscar funciona sobre el codigo real.",
+      "explanation": "Mi aportacion de esta semana fue de verificacion tecnica (apoya AC-01 y AC-02), no de codigo nuevo: confirme que el pipeline acumulado de las 3 semanas sigue pasando limpio, que el workflow de semana 3 corre con minimo privilegio y sin banderas que oculten fallos, y que no hay fuga de datos sensibles en los logs del backend ni de la app. No encontre ningun problema que requiriera una correccion, por lo que no genere un commit propio; el commitSha registrado es el HEAD de main (con el fix de autenticacion de Oscar ya integrado) contra el que corri todas mis verificaciones."
+    }
+  ]
+}
