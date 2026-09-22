@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "week": 3,
-  "commitSha": "101554798881b1ca51e23bf43c3d2928a4a8c66c",
+  "commitSha": "94a15b382624041b054017d7c455194534389c35",
   "decision": "El equipo decide atender primero la amenaza de exponer credenciales, implementando y verificando la validacion de Authorization en los endpoints protegidos del backend (GET /v1/resources y GET /v1/incidents), porque es la amenaza raiz que habilita a las demas: si se compromete una cuenta (especialmente de coordinador), un atacante puede ejecutar las otras tres amenazas priorizadas desde adentro del sistema con permisos legitimos.",
   "alternatives": [
     "Validar el token de sesion en cada peticion al backend, rechazando con 401 cualquier peticion sin token o con token invalido (opcion elegida).",
