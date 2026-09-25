@@ -1,13 +1,29 @@
 // scripts/check-auth.mjs — verifica que los endpoints protegidos exigen autenticación
 const BASE_URL = process.env.BASE_URL ?? 'http://127.0.0.1:4310';
-const VALID = { Authorization: 'Bearer course-valid-token' };
+const API_TOKEN = process.env.COURSE_API_TOKEN;
+
+if (!API_TOKEN) {
+  console.error('ERROR: falta la variable de entorno COURSE_API_TOKEN (ver .env.example)');
+  process.exit(2);
+}
+
+const VALID = { Authorization: `Bearer ${API_TOKEN}` };
+
+// Muestra solo protocolo, host y puerto: nunca usuario, contraseña ni query de la URL.
+function safeOrigin(url) {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return '[URL inválida]';
+  }
+}
 
 async function check(label, path, headers, expected) {
   let res;
   try {
     res = await fetch(`${BASE_URL}${path}`, { headers });
   } catch {
-    console.error(`ERROR: no se pudo conectar a ${BASE_URL} (¿está levantado el backend?)`);
+    console.error(`ERROR: no se pudo conectar a ${safeOrigin(BASE_URL)} (¿está levantado el backend?)`);
     process.exit(2);
   }
   const ok = res.status === expected;
