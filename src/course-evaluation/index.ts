@@ -7,13 +7,15 @@ import type {
   SyncRecord,
 } from './contracts';
 import type { IncidentLocation } from '../campusops/contracts';
+import { redactForTelemetry as redactCampusOpsTelemetry } from '../application/telemetry/redactForTelemetry';
 
 function pending(name: string): never {
   throw new Error(`${name} must be implemented in the assigned week`);
 }
 
-export function redactForTelemetry(_input: unknown): unknown {
-  return pending('redactForTelemetry');
+/** Week 04: delegates to the same sanitizer used by the app's telemetry. */
+export function redactForTelemetry(input: unknown): unknown {
+  return redactCampusOpsTelemetry(input);
 }
 
 export function parseRemoteResource(_input: unknown): ParseResult {

@@ -1,0 +1,204 @@
+{
+  "schemaVersion": 1,
+  "week": 4,
+  "commitSha": "90b89cfa1228324a56f7855580410125fb58ca51",
+  "generatedAt": "2026-09-27T21:11:48Z",
+  "threats": {
+    "T1": "docs/threat-model.md prioridad 1 — Exponer credenciales (token/Authorization en errores y logs)",
+    "T2": "docs/threat-model.md prioridad 2 — Filtrar datos en registros (nombre, ubicación, fotos, comentarios internos, historial de asignaciones)"
+  },
+  "testFiles": [
+    "src/application/telemetry/__tests__/redactForTelemetry.test.ts",
+    "src/application/telemetry/__tests__/Telemetry.test.ts",
+    "src/ui/screens/__tests__/IncidentScreens.telemetry.test.tsx",
+    "course-tests/public/week-04.test.ts"
+  ],
+  "fixtures": "Todos los datos son ficticios: actores públicos del backend didáctico (reporter-1, technician-1), correos @campusops.test, nombres 'Persona ficticia', 'Zona ficticia', synthetic-photo-*. No se usó información real.",
+  "checks": [
+    {
+      "id": "before-sanitizacion-desconectada",
+      "status": "fail",
+      "scenarioType": "failure",
+      "threat": "T1,T2",
+      "command": "Con Telemetry.ts registrando `context` y `error.message` crudos (sin redactForTelemetry ni scrubTelemetryText) y src/course-evaluation/index.ts en su versión starter (pending), ejecutar: npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/application/telemetry src/ui/screens course-tests/public/week-04.test.ts",
+      "evidence": "exit code 1. 'Test Suites: 4 failed, 4 total; Tests: 8 failed, 12 passed, 20 total'. Fallaron neg-08, neg-10, neg-11, neg-13, neg-15, neg-17, neg-18 y la prueba pública de semana 4 ('redactForTelemetry must be implemented in the assigned week'). En neg-10 el log de error recibido contenía la contraseña de la URL, el token de query, el header 'Authorization: Bearer ...' y el correo ficticio; en neg-17 la UI mostraba un mensaje genérico pero el log conservaba el token y el correo. Demuestra que ocultar el dato en pantalla no basta. Después se restauraron los archivos y se repitió la corrida (check after-suite-completa)."
+    },
+    {
+      "id": "after-suite-completa",
+      "status": "pass",
+      "scenarioType": "nominal",
+      "threat": "T1,T2",
+      "command": "npm run test:security",
+      "evidence": "exit code 0. PASS en los 4 suites: redactForTelemetry.test.ts, Telemetry.test.ts, IncidentScreens.telemetry.test.tsx y course-tests/public/week-04.test.ts. 'Tests: 20 passed, 20 total'."
+    },
+    {
+      "id": "neg-01-log-crudo-filtra",
+      "status": "fail",
+      "scenarioType": "failure",
+      "threat": "T2",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/application/telemetry -t \"neg-01\"",
+      "evidence": "Control negativo: JSON.stringify del reporte de incidencia SIN sanitizar contiene los 12 valores sensibles ficticios (nombre, ubicación, correo, IDs de reportante/técnico, fotos, comentarios internos, evidencia, token). La prueba lo afirma y pasa, dejando registrado que el camino sin control filtra (status fail = el log crudo no es seguro)."
+    },
+    {
+      "id": "neg-02-anidado-reportante",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "threat": "T2",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/application/telemetry -t \"neg-02\"",
+      "evidence": "Una incidencia con `reportante: { nombre, ubicacion, email }` y `payload.location: { label, latitude, longitude }` devuelve reportante = { nombre: '[REDACTED]', ubicacion: '[REDACTED]', email: '[REDACTED]' }; location, reporterId, assignedTechnicianId, assignmentHistory y request.headers.Authorization quedan '[REDACTED]'. Ninguno de los 12 valores sensibles aparece en la salida serializada."
+    },
+    {
+      "id": "neg-03-listas",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "threat": "T2",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/application/telemetry -t \"neg-03\"",
+      "evidence": "photos e internalComments (listas) se sustituyen completas por '[REDACTED]'; la lista attachments se recorre elemento por elemento (evidence e internal_comments ocultos, kind/status conservados); listas anidadas [[{ password }]] también se sanitizan."
+    },
+    {
+      "id": "neg-04-contexto-tecnico",
+      "status": "pass",
+      "scenarioType": "nominal",
+      "threat": "T2",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/application/telemetry -t \"neg-04\"",
+      "evidence": "Se conservan incidentId, correlationId, status, attempt, durationMs, payload.category y headers.accept: el log sigue siendo útil para depurar."
+    },
+    {
+      "id": "neg-05-no-muta-original",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "threat": "T2",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/application/telemetry -t \"neg-05\"",
+      "evidence": "La entrada se congela profundamente (Object.freeze recursivo) antes de sanitizar: no se lanza TypeError, la entrada sigue igual a su structuredClone previo y la salida y sus objetos/listas anidados son instancias nuevas (no.toBe)."
+    },
+    {
+      "id": "neg-06-normalizacion-claves",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "threat": "T1,T2",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/application/telemetry -t \"neg-06\"",
+      "evidence": "ACCESS_TOKEN, refresh-token, Assigned_Technician_Id, DisplayName e internal-comments se ocultan al normalizar la clave (minúsculas, sin _ ni -); incident_id se conserva."
+    },
+    {
+      "id": "neg-07-circular-y-primitivos",
+      "status": "pass",
+      "scenarioType": "failure",
+      "threat": "T2",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/application/telemetry -t \"neg-07\"",
+      "evidence": "Un objeto con referencia a sí mismo produce self: '[Circular]' sin bucle infinito ni stack overflow; un objeto compartido sin ciclo se copia en ambas posiciones; null, string, number y [] se devuelven sin error."
+    },
+    {
+      "id": "neg-08-adaptador-usa-logica-real",
+      "status": "pass",
+      "scenarioType": "nominal",
+      "threat": "T2",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/application/telemetry -t \"neg-08\"",
+      "evidence": "redactForTelemetry de src/course-evaluation devuelve exactamente lo mismo que src/application/telemetry/redactForTelemetry.ts, que es la función que usa Telemetry en la app."
+    },
+    {
+      "id": "neg-09-error-crudo-filtra",
+      "status": "fail",
+      "scenarioType": "failure",
+      "threat": "T1",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/application/telemetry -t \"neg-09\"",
+      "evidence": "Control negativo: el mensaje de error simulado del backend contiene contraseña en la URL, token= en query, 'Authorization: Bearer ...' y un correo ficticio. Registrarlo sin limpiar expondría credenciales (status fail = el camino sin control no es seguro)."
+    },
+    {
+      "id": "neg-10-error-listIncidents",
+      "status": "pass",
+      "scenarioType": "failure",
+      "threat": "T1,T2",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/application/telemetry -t \"neg-10\"",
+      "evidence": "El repositorio rechaza con el mensaje con secretos; listIncidents relanza el error y registra una sola entrada { level: 'error', event: 'incidents.list_failed' } cuyo mensaje contiene 'Bearer [REDACTED]' y ya no contiene la contraseña, el token ni el correo."
+    },
+    {
+      "id": "neg-11-error-getIncidentDetail",
+      "status": "pass",
+      "scenarioType": "failure",
+      "threat": "T1,T2",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/application/telemetry -t \"neg-11\"",
+      "evidence": "incidents.detail_failed conserva context.incidentId = 'campus-inc-001' (contexto técnico) y no contiene ninguno de los valores filtrados."
+    },
+    {
+      "id": "neg-12-throw-no-error",
+      "status": "pass",
+      "scenarioType": "failure",
+      "threat": "T2",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/application/telemetry -t \"neg-12\"",
+      "evidence": "Si se lanza un objeto { name, location } en vez de un Error, el log registra { name: 'NonError', message: 'thrown value of type object' } y no vuelca su contenido."
+    },
+    {
+      "id": "neg-13-contexto-evento-anidado",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "threat": "T2",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/application/telemetry -t \"neg-13\"",
+      "evidence": "telemetry.info('incidents.assigned', { incidentId, assignment: { technicianId, history: [...] } }) registra assignment = { technicianId: '[REDACTED]', history: '[REDACTED]' } y conserva incidentId."
+    },
+    {
+      "id": "neg-14-sink-falla",
+      "status": "pass",
+      "scenarioType": "failure",
+      "threat": "T2",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/application/telemetry -t \"neg-14\"",
+      "evidence": "Si el destino de logs lanza ('disk full'), listIncidents resuelve igual con 4 incidencias: un fallo de telemetría no cierra la app."
+    },
+    {
+      "id": "neg-15-consola-real",
+      "status": "pass",
+      "scenarioType": "failure",
+      "threat": "T1,T2",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/application/telemetry -t \"neg-15\"",
+      "evidence": "Con ConsoleTelemetrySink (el sink de App.tsx) y console.warn espiado, lo impreso contiene 'incidents.list_failed' y ninguno de los valores con secretos."
+    },
+    {
+      "id": "neg-16-evento-nominal",
+      "status": "pass",
+      "scenarioType": "nominal",
+      "threat": "T2",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/application/telemetry -t \"neg-16\"",
+      "evidence": "getIncidentDetail('inc-001') registra incidents.detail_loaded con { incidentId: 'inc-001', status: 'open', durationMs } y no incluye la descripción de texto libre de la incidencia."
+    },
+    {
+      "id": "neg-17-ui-lista-oculta-y-log-limpio",
+      "status": "pass",
+      "scenarioType": "failure",
+      "threat": "T1,T2",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/ui/screens -t \"neg-17\"",
+      "evidence": "IncidentListScreen con repositorio que falla muestra testID incident-list-error ('No se pudieron cargar las incidencias.'), la pantalla no muestra token ni correo, y el log capturado tampoco los contiene."
+    },
+    {
+      "id": "neg-18-ui-detalle-oculta-y-log-limpio",
+      "status": "pass",
+      "scenarioType": "failure",
+      "threat": "T1,T2",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/ui/screens -t \"neg-18\"",
+      "evidence": "IncidentDetailScreen muestra incident-detail-error; el log registra incidents.detail_failed con incidentId 'campus-inc-001' y sin token ni correo."
+    },
+    {
+      "id": "contrato-publico-semana-04",
+      "status": "pass",
+      "scenarioType": "nominal",
+      "threat": "T1,T2",
+      "command": "npm test -- --ci --runInBand course-tests/public/week-04.test.ts",
+      "evidence": "PASS: authorization, email, displayName, location, photos e internalComments = '[REDACTED]'; incidentId y accept conservados."
+    },
+    {
+      "id": "reportes-sin-datos-de-prueba",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "threat": "T2",
+      "command": "grep -rnE \"Persona Fic[t]icia Uno|reportante[.]fic[t]icio@|clave-fic[t]icia|tok-fic[t]icio\" reports/ evidence/ docs/",
+      "evidence": "grep exit code 1 (sin coincidencias): los valores sensibles ficticios usados en las pruebas no quedaron copiados en reportes, evidencias ni documentos."
+    },
+    {
+      "id": "verify-semana-04",
+      "status": "pass",
+      "scenarioType": "nominal",
+      "threat": "T1",
+      "command": "make verify-week-04",
+      "evidence": "exit code 0, status pass: base_files, react_native_profile, toolchain_scripts, workflow_integrity, secret_scan (hits=[]), typecheck, lint, audit:ci y test:smoke en pass. node tools/check-architecture-boundaries.mjs: 'PASS: ningún archivo en src/ui importa directo de infrastructure.'"
+    }
+  ],
+  "notApplicable": "Preferencias/almacenamiento local: la app aún no persiste sesión ni preferencias; el almacenamiento seguro lo cubre la parte de secret-scan/almacenamiento (reports/week-04/secret-scan.json)."
+}

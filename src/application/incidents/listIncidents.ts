@@ -1,6 +1,18 @@
 import type { Incident } from '../../domain/incident/Incident';
 import type { IncidentRepository } from '../../domain/incident/IncidentRepository';
+import { noopTelemetry, type Telemetry } from '../telemetry/Telemetry';
 
-export function listIncidents(repository: IncidentRepository): Promise<readonly Incident[]> {
-  return repository.getAll();
+export async function listIncidents(
+  repository: IncidentRepository,
+  telemetry: Telemetry = noopTelemetry,
+): Promise<readonly Incident[]> {
+  const startedAt = Date.now();
+  try {
+    const incidents = await repository.getAll();
+    telemetry.info('incidents.list_loaded', { count: incidents.length, durationMs: Date.now() - startedAt });
+    return incidents;
+  } catch (error) {
+    telemetry.error('incidents.list_failed', error, { durationMs: Date.now() - startedAt });
+    throw error;
+  }
 }

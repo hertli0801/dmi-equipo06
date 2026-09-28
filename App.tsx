@@ -3,12 +3,16 @@ import { StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 
 import { getBackendHealth } from './src/api/courseBackend';
+import { createTelemetry } from './src/application/telemetry/Telemetry';
 import { InMemoryIncidentRepository } from './src/infrastructure/incidents/InMemoryIncidentRepository';
+import { ConsoleTelemetrySink } from './src/infrastructure/telemetry/ConsoleTelemetrySink';
 import { IncidentDetailScreen } from './src/ui/screens/IncidentDetailScreen';
 import { IncidentListScreen } from './src/ui/screens/IncidentListScreen';
 
 // Composition root: the only place allowed to know about the Infrastructure implementation.
 const incidentRepository = new InMemoryIncidentRepository();
+// Todo log pasa por redactForTelemetry antes de llegar a la consola.
+const telemetry = createTelemetry(new ConsoleTelemetrySink());
 
 type Route = Readonly<{ name: 'list' }> | Readonly<{ name: 'detail'; incidentId: string }>;
 
@@ -20,7 +24,10 @@ export default function App() {
     let active = true;
     getBackendHealth()
       .then(() => active && setStatus('available'))
-      .catch(() => active && setStatus('offline'));
+      .catch((error: unknown) => {
+        telemetry.error('backend.health_failed', error);
+        if (active) setStatus('offline');
+      });
     return () => {
       active = false;
     };
@@ -36,12 +43,14 @@ export default function App() {
       {route.name === 'list' ? (
         <IncidentListScreen
           repository={incidentRepository}
+          telemetry={telemetry}
           onSelectIncident={(incidentId) => setRoute({ name: 'detail', incidentId })}
         />
       ) : (
         <IncidentDetailScreen
           key={route.incidentId}
           repository={incidentRepository}
+          telemetry={telemetry}
           incidentId={route.incidentId}
           onBack={() => setRoute({ name: 'list' })}
         />

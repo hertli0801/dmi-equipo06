@@ -4,25 +4,31 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { getIncidentDetail } from '../../application/incidents/getIncidentDetail';
 import type { Incident } from '../../domain/incident/Incident';
 import type { IncidentRepository } from '../../domain/incident/IncidentRepository';
+import type { Telemetry } from '../../application/telemetry/Telemetry';
 
 export type IncidentDetailScreenProps = Readonly<{
   repository: IncidentRepository;
   incidentId: string;
   onBack: () => void;
+  telemetry?: Telemetry;
 }>;
 
-export function IncidentDetailScreen({ repository, incidentId, onBack }: IncidentDetailScreenProps) {
-  const [incident, setIncident] = useState<Incident | null | 'loading'>('loading');
+export function IncidentDetailScreen({ repository, incidentId, onBack, telemetry }: IncidentDetailScreenProps) {
+  const [incident, setIncident] = useState<Incident | null | 'loading' | 'error'>('loading');
 
   useEffect(() => {
     let active = true;
-    getIncidentDetail(repository, incidentId).then((result) => {
-      if (active) setIncident(result);
-    });
+    getIncidentDetail(repository, incidentId, telemetry)
+      .then((result) => {
+        if (active) setIncident(result);
+      })
+      .catch(() => {
+        if (active) setIncident('error');
+      });
     return () => {
       active = false;
     };
-  }, [repository, incidentId]);
+  }, [repository, incidentId, telemetry]);
 
   return (
     <View style={styles.container} testID="incident-detail-screen">
@@ -31,7 +37,8 @@ export function IncidentDetailScreen({ repository, incidentId, onBack }: Inciden
       </Pressable>
       {incident === 'loading' && <Text>Cargando…</Text>}
       {incident === null && <Text>Incidencia no encontrada.</Text>}
-      {incident !== 'loading' && incident !== null && (
+      {incident === 'error' && <Text testID="incident-detail-error">No se pudo cargar la incidencia.</Text>}
+      {incident !== 'loading' && incident !== 'error' && incident !== null && (
         <View>
           <Text style={styles.title}>{incident.categoria}</Text>
           <Text>{incident.descripcion}</Text>
