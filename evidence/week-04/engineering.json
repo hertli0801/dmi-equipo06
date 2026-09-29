@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "week": 4,
+  "commitSha": "867c9e15056338099eb689d939e2d2f1a413fbea",
+  "decision": "El equipo decide usar expo-secure-store para almacenar el refresh token de sesion, cifrandolo con el almacenamiento seguro nativo del sistema operativo (Keychain en iOS, Keystore en Android), en vez de guardarlo en AsyncStorage sin cifrar o solo en memoria, porque T1 (exponer credenciales) es la amenaza de mayor prioridad del threat-model y comprometer una cuenta habilita las demas amenazas priorizadas desde adentro del sistema.",
+  "alternatives": [
+    "expo-secure-store: cifra el dato en reposo usando Keychain/Keystore nativo, sin necesidad de salir del managed workflow de Expo (opcion elegida).",
+    "AsyncStorage sin cifrar: API mas simple y ya presente en el proyecto, pero guarda el token en texto plano, accesible si el dispositivo es comprometido fisicamente o mediante un backup no cifrado.",
+    "Variable en memoria sin persistencia: evita el problema de almacenamiento en disco por completo, pero obliga a reautenticar en cada apertura de la app, lo cual no cumple con persistir sesion de forma segura.",
+    "react-native-keychain: mismo nivel de cifrado nativo que expo-secure-store, pero requiere configuracion de codigo nativo adicional que no aporta beneficio extra dado que el proyecto ya vive en el managed workflow de Expo."
+  ],
+  "tradeoff": "Beneficio: expo-secure-store cifra el refresh token con el mecanismo nativo del sistema operativo, reduciendo el riesgo de que quede legible si el dispositivo es comprometido fisicamente o mediante un backup no cifrado; se integra sin salir del managed workflow de Expo. Costo: agrega una dependencia adicional (expo-secure-store ~57.0.4) y una API asincrona ligeramente mas compleja que AsyncStorage; ademas, protege el dato en reposo pero no cubre un dispositivo ya comprometido con jailbreak/root avanzado ni un volcado de memoria mientras la sesion esta activa (riesgo residual documentado en docs/security-controls.md).",
+  "requirementIds": ["AC-02", "AC-03", "AC-04"],
+  "verification": [
+    {
+      "command": "python tools/course_public_evaluator.py --week 4 --mode verify",
+      "result": "Con un archivo temporal src/temp-secret.ts conteniendo una clave ficticia con formato de AWS (prefijo AKIA), el check secret_scan cambio a status fail con hits=['src\\\\temp-secret.ts:aws_access_key']. Tras eliminar el archivo, el check volvio a status pass con hits=[], confirmando que expo-secure-store queda correctamente instalado (dependencia en package.json, plugin en app.json) y que el escaner no genera falsos positivos sobre el codigo existente ni sobre los tokens de prueba del backend simulado.",
+      "evidence": "reports/week-04/secret-scan.json"
+    },
+    {
+      "command": "make verify-week-04",
+      "result": "exit code 0, status pass: base_files, react_native_profile, toolchain_scripts, workflow_integrity, secret_scan (hits=[]), typecheck, lint y test:smoke en pass.",
+      "evidence": "reports/week-04/negative-tests.json, check 'verify-semana-04'"
+    }
+  ]
+}

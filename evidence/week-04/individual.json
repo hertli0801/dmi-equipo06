@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "week": 4,
+  "teamId": "10A-E06",
+  "members": [
+    {
+      "studentId": "3523110151",
+      "commitShas": [
+        "ef9641fcfa390150cf6454dc626b66b4b34ce03d",
+        "748c525c8758775187f0e361f7e3c0b3e868b9f5"
+      ],
+      "files": [
+        "src/infrastructure/session/secureSession.ts",
+        "reports/week-04/secret-scan.json",
+        "package.json",
+        "app.json"
+      ],
+      "tests": [
+        "python tools/course_public_evaluator.py --week 4 --mode verify"
+      ],
+      "reviews": [],
+      "prediction": "Esperaba que expo-secure-store cifrara el token de sesion en el dispositivo y que el escaneo de secretos del evaluador fallara al detectar una clave ficticia con formato de AWS en un archivo temporal, y volviera a pasar al eliminarla.",
+      "command": "python tools/course_public_evaluator.py --week 4 --mode verify",
+      "observedResult": "El check secret_scan paso limpio con hits=[]. Con src/temp-secret.ts conteniendo una clave ficticia de formato AWS, el check cambio a status fail con hits=['src\\\\temp-secret.ts:aws_access_key']. Tras eliminar el archivo, volvio a status pass con hits=[].",
+      "explanation": "Confirma que expo-secure-store queda correctamente instalado y configurado (plugin en app.json, dependencia en package.json) y que el escaner de secretos del proyecto detecta credenciales con formato conocido (AWS) mientras no da falsos positivos en el codigo ya existente, incluidos los tokens de prueba del backend simulado."
+    },
+    {
+      "studentId": "3523110817",
+      "commitShas": [
+        "90b89cfa1228324a56f7855580410125fb58ca51",
+        "7f8a15f957ce9f4b3c94431f6bb3dfd20338460c"
+      ],
+      "files": [
+        "src/application/telemetry/redactForTelemetry.ts",
+        "src/application/telemetry/Telemetry.ts",
+        "src/infrastructure/telemetry/ConsoleTelemetrySink.ts",
+        "src/application/incidents/listIncidents.ts",
+        "src/application/incidents/getIncidentDetail.ts",
+        "src/ui/screens/IncidentListScreen.tsx",
+        "src/ui/screens/IncidentDetailScreen.tsx",
+        "src/course-evaluation/index.ts",
+        "App.tsx",
+        "reports/week-04/negative-tests.json"
+      ],
+      "tests": [
+        "npm run test:security",
+        "npm test -- --ci --runInBand course-tests/public/week-04.test.ts",
+        "make verify-week-04"
+      ],
+      "reviews": [
+        "docs/threat-model.md",
+        "docs/CAMPUSOPS_API.md"
+      ],
+      "prediction": "Esperaba que, con la sanitizacion desconectada (Telemetry registrando context y error.message crudos y el adaptador de src/course-evaluation en su version starter), las pruebas negativas fallaran y el log conservara el token, el header Authorization y el correo ficticios aunque la UI mostrara un mensaje generico; y que al conectar redactForTelemetry a listIncidents, getIncidentDetail, las pantallas y App.tsx, toda la suite pasara conservando el contexto tecnico (incidentId, status, durationMs) sin exponer secretos.",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/application/telemetry src/ui/screens course-tests/public/week-04.test.ts && npm run test:security && make verify-week-04",
+      "observedResult": "Con la sanitizacion desconectada: exit code 1, 'Tests: 8 failed, 12 passed, 20 total' (fallaron neg-08, neg-10, neg-11, neg-13, neg-15, neg-17, neg-18 y la prueba publica de semana 4). En neg-10 el log de error contenia la contrasena de la URL, el token de query y 'Authorization: Bearer ...'; en neg-17 la pantalla mostraba el error generico pero el log conservaba token y correo. Tras conectar redactForTelemetry: npm run test:security exit code 0, 4 suites en PASS, 'Tests: 20 passed, 20 total'. Los casos anidados (reportante, location), las listas (photos, internalComments), la normalizacion de claves (ACCESS_TOKEN, refresh-token), las referencias circulares y la no mutacion de la entrada congelada pasan; incidentId, correlationId, status y durationMs se conservan. make verify-week-04 termino con exit code 0 (secret_scan sin hits, typecheck, lint, audit:ci en pass); un grep de los valores ficticios en reports/, evidence/ y docs/ no devolvio coincidencias.",
+      "explanation": "Mi aportacion de esta semana fue de codigo: implemente redactForTelemetry segun el contrato de docs/CAMPUSOPS_API.md y la conecte a los logs reales de CampusOps via Telemetry y ConsoleTelemetrySink, de modo que todo evento y mensaje de error pasa por la sanitizacion antes de registrarse. Esto atiende las amenazas T1 (exponer credenciales) y T2 (filtrar datos en registros) de docs/threat-model.md. El ciclo antes/despues demuestra que el control es real: sin el, 8 pruebas fallan y el log filtra secretos aun cuando la UI los oculta; con el, pasan 20/20. Ademas, un fallo simulado del sink de logs no tumba la app (neg-14). Todos los datos usados en las pruebas son ficticios y quedo documentado en reports/week-04/negative-tests.json (commits 90b89cf y 7f8a15f)."
+    },
+    {
+      "studentId": "3523110560",
+      "commitShas": [
+        "e8bb2dcb037de2306161f679856c312ddde8bb40"
+      ],
+      "files": [
+        "docs/security-controls.md"
+      ],
+      "tests": [],
+      "reviews": [
+        "reports/week-04/secret-scan.json",
+        "reports/week-04/negative-tests.json"
+      ],
+      "prediction": "Esperaba que los seis casos citados en docs/security-controls.md (neg-02, neg-03, neg-09, neg-10, neg-13, neg-15) coincidieran exactamente con el status y la evidencia registrados en reports/week-04/negative-tests.json, incluyendo que neg-09 apareciera en status fail como control negativo que demuestra la fuga sin la sanitizacion conectada, antes de que Alberto la conectara a los logs reales.",
+      "command": "grep -A6 '\"id\": \"neg-02\\|\"id\": \"neg-03\\|\"id\": \"neg-09\\|\"id\": \"neg-10\\|\"id\": \"neg-13\\|\"id\": \"neg-15' reports/week-04/negative-tests.json",
+      "observedResult": "Los seis casos coinciden con lo documentado: neg-02-anidado-reportante y neg-03-listas en pass (estructuras anidadas y listas redactadas), neg-09-error-crudo-filtra en fail (control negativo: el mensaje de error crudo contiene contrasena, token y correo ficticios), neg-10-error-listIncidents en pass (el mensaje ya solo contiene 'Bearer [REDACTED]'), neg-13-contexto-evento-anidado en pass (assignment anidado redactado, incidentId conservado) y neg-15-consola-real en pass (console.warn no imprime secretos).",
+      "explanation": "Mi aportacion de esta semana fue de documentacion tecnica: sintetizar los dos controles de codigo del equipo, justificar la eleccion de expo-secure-store frente a AsyncStorage sin cifrar, y dejar explicito el riesgo residual (persistencia de sesion aun pendiente para una semana posterior), conectando el trabajo de la semana con el modelo de amenazas de la semana 3."
+    }
+  ]
+}
