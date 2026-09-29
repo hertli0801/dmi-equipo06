@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "week": 4,
-  "commitSha": "90b89cfa1228324a56f7855580410125fb58ca51",
+  "commitSha": "e20c33021909b67b1e4ae4e020f9a619a02f8dee",
   "generatedAt": "2026-09-27T21:11:48Z",
   "threats": {
     "T1": "docs/threat-model.md prioridad 1 — Exponer credenciales (token/Authorization en errores y logs)",

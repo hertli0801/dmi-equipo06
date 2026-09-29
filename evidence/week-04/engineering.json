@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "week": 4,
-  "commitSha": "867c9e15056338099eb689d939e2d2f1a413fbea",
+  "commitSha": "e20c33021909b67b1e4ae4e020f9a619a02f8dee",
   "decision": "El equipo decide usar expo-secure-store para almacenar el refresh token de sesion, cifrandolo con el almacenamiento seguro nativo del sistema operativo (Keychain en iOS, Keystore en Android), en vez de guardarlo en AsyncStorage sin cifrar o solo en memoria, porque T1 (exponer credenciales) es la amenaza de mayor prioridad del threat-model y comprometer una cuenta habilita las demas amenazas priorizadas desde adentro del sistema.",
   "alternatives": [
     "expo-secure-store: cifra el dato en reposo usando Keychain/Keystore nativo, sin necesidad de salir del managed workflow de Expo (opcion elegida).",
@@ -10,7 +10,11 @@
     "react-native-keychain: mismo nivel de cifrado nativo que expo-secure-store, pero requiere configuracion de codigo nativo adicional que no aporta beneficio extra dado que el proyecto ya vive en el managed workflow de Expo."
   ],
   "tradeoff": "Beneficio: expo-secure-store cifra el refresh token con el mecanismo nativo del sistema operativo, reduciendo el riesgo de que quede legible si el dispositivo es comprometido fisicamente o mediante un backup no cifrado; se integra sin salir del managed workflow de Expo. Costo: agrega una dependencia adicional (expo-secure-store ~57.0.4) y una API asincrona ligeramente mas compleja que AsyncStorage; ademas, protege el dato en reposo pero no cubre un dispositivo ya comprometido con jailbreak/root avanzado ni un volcado de memoria mientras la sesion esta activa (riesgo residual documentado en docs/security-controls.md).",
-  "requirementIds": ["AC-02", "AC-03", "AC-04"],
+  "requirementIds": [
+    "AC-02",
+    "AC-03",
+    "AC-04"
+  ],
   "verification": [
     {
       "command": "python tools/course_public_evaluator.py --week 4 --mode verify",
