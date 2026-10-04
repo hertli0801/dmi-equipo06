@@ -19,6 +19,7 @@ function memorySink() {
 const failingRepository: IncidentRepository = {
   getAll: () => Promise.reject(new Error(LEAKY_MESSAGE)),
   getById: () => Promise.reject(new Error(LEAKY_MESSAGE)),
+  create: () => Promise.reject(new Error(LEAKY_MESSAGE)),
 };
 
 describe('Telemetry — caminos de error (amenazas 1 y 2 del threat model)', () => {

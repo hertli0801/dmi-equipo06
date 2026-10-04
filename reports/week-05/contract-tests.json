@@ -1,0 +1,114 @@
+[
+  {
+    "name": "listar",
+    "command": "GET /v1/incidents",
+    "status": 200,
+    "response": {
+      "items": [
+        {
+          "id": "campus-inc-001",
+          "version": 1,
+          "status": "assigned",
+          "payload": {
+            "category": "connectivity",
+            "description": "Sin conexión en laboratorio ficticio",
+            "location": "Edificio de prueba A",
+            "reporterId": "reporter-1",
+            "assignedTechnicianId": "technician-1",
+            "priority": "medium",
+            "notes": [],
+            "evidence": [],
+            "history": []
+          }
+        },
+        {
+          "id": "campus-inc-101",
+          "version": 1,
+          "status": "open",
+          "payload": {
+            "category": "electrical",
+            "description": "prueba contrato",
+            "location": "Edificio A",
+            "reporterId": "reporter-1",
+            "assignedTechnicianId": null,
+            "priority": "medium",
+            "notes": [],
+            "evidence": [],
+            "history": []
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "detalle",
+    "command": "GET /v1/incidents/campus-inc-001",
+    "status": 200,
+    "response": {
+      "id": "campus-inc-001",
+      "version": 1,
+      "status": "assigned",
+      "payload": {
+        "category": "connectivity",
+        "description": "Sin conexión en laboratorio ficticio",
+        "location": "Edificio de prueba A",
+        "reporterId": "reporter-1",
+        "assignedTechnicianId": "technician-1",
+        "priority": "medium",
+        "notes": [],
+        "evidence": [],
+        "history": []
+      }
+    }
+  },
+  {
+    "name": "crear",
+    "command": "POST /v1/incidents",
+    "status": 201,
+    "response": {
+      "incident": {
+        "id": "campus-inc-102",
+        "version": 1,
+        "status": "open",
+        "payload": {
+          "category": "electrical",
+          "description": "prueba contrato",
+          "location": "Edificio A",
+          "reporterId": "reporter-1",
+          "assignedTechnicianId": null,
+          "priority": "medium",
+          "notes": [],
+          "evidence": [],
+          "history": []
+        }
+      },
+      "operationId": "week05-1791095484055",
+      "duplicate": false
+    }
+  },
+  {
+    "name": "crear (misma clave, no duplica)",
+    "command": "POST /v1/incidents",
+    "status": 200,
+    "response": {
+      "incident": {
+        "id": "campus-inc-102",
+        "version": 1,
+        "status": "open",
+        "payload": {
+          "category": "electrical",
+          "description": "prueba contrato",
+          "location": "Edificio A",
+          "reporterId": "reporter-1",
+          "assignedTechnicianId": null,
+          "priority": "medium",
+          "notes": [],
+          "evidence": [],
+          "history": []
+        }
+      },
+      "operationId": "week05-1791095484055",
+      "duplicate": true
+    }
+  }
+]

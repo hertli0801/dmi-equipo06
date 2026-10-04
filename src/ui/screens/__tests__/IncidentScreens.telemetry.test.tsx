@@ -10,6 +10,7 @@ const LEAKY_MESSAGE = 'Bearer course-valid-token rejected for reportante.fictici
 const failingRepository: IncidentRepository = {
   getAll: () => Promise.reject(new Error(LEAKY_MESSAGE)),
   getById: () => Promise.reject(new Error(LEAKY_MESSAGE)),
+  create: () => Promise.reject(new Error(LEAKY_MESSAGE)),
 };
 
 function memoryTelemetry() {
