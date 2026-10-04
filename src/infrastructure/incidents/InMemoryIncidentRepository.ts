@@ -10,11 +10,28 @@ const FAKE_INCIDENTS: readonly Incident[] = [
 
 /** Fake, deterministic implementation of IncidentRepository for the Week 2 skeleton. */
 export class InMemoryIncidentRepository implements IncidentRepository {
+  private readonly created: Incident[] = [];
+
+  private all(): readonly Incident[] {
+    return [...FAKE_INCIDENTS, ...this.created];
+  }
+
   async getAll(): Promise<readonly Incident[]> {
-    return FAKE_INCIDENTS;
+    return this.all();
   }
 
   async getById(id: string): Promise<Incident | null> {
-    return FAKE_INCIDENTS.find((incident) => incident.id === id) ?? null;
+    return this.all().find((incident) => incident.id === id) ?? null;
+  }
+
+  async create(input: { categoria: string; descripcion: string; location: string }): Promise<Incident> {
+    const incident: Incident = {
+      id: `inc-${String(FAKE_INCIDENTS.length + this.created.length + 1).padStart(3, '0')}`,
+      categoria: input.categoria as Incident['categoria'],
+      descripcion: input.descripcion,
+      estado: 'open',
+    };
+    this.created.push(incident);
+    return incident;
   }
 }
