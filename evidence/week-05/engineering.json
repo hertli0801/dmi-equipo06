@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "week": 5,
+  "commitSha": "539f9ef4feb3c4917b4fe1e8128737f7ad5368fe",
+  "decision": "El equipo decide separar estrictamente el DTO crudo del servidor (validado por parseRemoteResource), el modelo de dominio Incident, y las fallas de red/contrato (tipadas en IncidentRemoteError), en vez de dejar que las pantallas consuman directamente la respuesta JSON del backend. CloudIncidentRepository es el unico punto donde el DTO se traduce a Incident o se convierte en un IncidentRemoteError tipado; ninguna pantalla ni caso de uso toca fetch ni el JSON crudo directamente.",
+  "alternatives": [
+    "Separar DTO/dominio/error con tres tipos distintos y una sola capa de traduccion en CloudIncidentRepository (opcion elegida).",
+    "Usar el DTO directamente en las pantallas, dejando que cada componente valide y extraiga los campos que necesita del JSON crudo.",
+    "Representar todas las fallas (contrato invalido, timeout, error 500, sin red) como una unica excepcion generica Error con un mensaje de texto libre."
+  ],
+  "tradeoff": "Beneficio: separar DTO, dominio y error hace que un payload null valido nunca se confunda con un fallo (queda como Incident con campos null dentro de un resultado exitoso), que un cambio futuro en el contrato del servidor solo afecte la capa de traduccion en vez de cada pantalla, y que cada tipo de falla (malformed, timeout, serverError, http, network) se pueda manejar de forma distinta por quien consume el repositorio, sin tener que parsear un mensaje de texto. Costo: agrega una capa adicional de traduccion y un tipo de error con mas casos que una excepcion generica, lo que implica mas codigo y mas pruebas (29 casos en failure-matrix.json) para cubrir cada rama. Se descarto usar el DTO directamente en las pantallas porque obligaria a repetir la validacion de forma en cada componente y mezclaria el contrato del servidor con la logica de presentacion. Se descarto una excepcion generica porque un timeout y un error 500 requieren manejo distinto en la UI (reintentar vs avisar que el servidor fallo) y un mensaje de texto libre no es seguro de registrar en logs sin arriesgar filtrar datos sensibles.",
+  "requirementIds": [
+    "AC-02",
+    "AC-03",
+    "AC-04"
+  ],
+  "verification": [
+    {
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents",
+      "result": "29 casos de reports/week-05/failure-matrix.json en PASS: un payload null valido resuelve como Incident con campos null (no como error); un JSON malformado, un timeout y un error 500 se distinguen como IncidentRemoteError con kind distinto ('malformed', 'timeout', 'serverError'); una lista con un elemento corrupto se rechaza completa como 'contract' en vez de devolver datos parciales.",
+      "evidence": "reports/week-05/failure-matrix.json, src/domain/incident/IncidentRemoteError.ts, src/infrastructure/incidents/CloudIncidentRepository.ts"
+    },
+    {
+      "command": "npx jest course-tests/public/week-05.test.ts",
+      "result": "Los 5 casos publicos del contrato DTO pasan: id/status no vacios, version entera no negativa, payload objeto o null son validos; version como string e id vacio se rechazan como 'contract'.",
+      "evidence": "course-tests/public/week-05.test.ts, src/course-evaluation/index.ts"
+    }
+  ]
+}
