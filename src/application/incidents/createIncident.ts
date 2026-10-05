@@ -1,5 +1,6 @@
 import type { Incident } from '../../domain/incident/Incident';
 import type { IncidentRepository } from '../../domain/incident/IncidentRepository';
+import { remoteFailureKind } from '../../domain/incident/IncidentRemoteError';
 import { noopTelemetry, type Telemetry } from '../telemetry/Telemetry';
 
 export async function createIncident(
@@ -13,7 +14,10 @@ export async function createIncident(
     telemetry.info('incidents.create_succeeded', { incidentId: incident.id, durationMs: Date.now() - startedAt });
     return incident;
   } catch (error) {
-    telemetry.error('incidents.create_failed', error, { durationMs: Date.now() - startedAt });
+    telemetry.error('incidents.create_failed', error, {
+      failureKind: remoteFailureKind(error),
+      durationMs: Date.now() - startedAt,
+    });
     throw error;
   }
 }

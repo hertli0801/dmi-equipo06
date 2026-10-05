@@ -44,8 +44,8 @@ export function IncidentListScreen({ repository, onSelectIncident, telemetry }: 
             style={styles.item}
             onPress={() => onSelectIncident(item.id)}
           >
-            <Text style={styles.itemTitle}>{item.categoria}</Text>
-            <Text>{item.descripcion}</Text>
+            <Text style={styles.itemTitle}>{item.categoria ?? 'Sin categoría'}</Text>
+            <Text>{item.descripcion ?? 'Sin detalle disponible.'}</Text>
             <Text style={styles.itemStatus}>{item.estado}</Text>
           </Pressable>
         )}

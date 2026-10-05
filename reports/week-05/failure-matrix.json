@@ -1,0 +1,277 @@
+{
+  "schemaVersion": 1,
+  "week": 5,
+  "commitSha": "ddbdd58f09ac5a453b522711e75cb80756c9ae0a",
+  "generatedAt": "2026-10-05T01:32:09Z",
+  "client": "src/infrastructure/incidents/CloudIncidentRepository.ts",
+  "errorTypes": "src/domain/incident/IncidentRemoteError.ts — IncidentRemoteError.failure.kind ∈ contract | malformed | timeout | serverError | http | network",
+  "testFiles": [
+    "src/infrastructure/incidents/__tests__/CloudIncidentRepository.failures.test.ts",
+    "src/infrastructure/incidents/__tests__/CloudIncidentRepository.backend.test.ts"
+  ],
+  "offline": "Ninguna prueba usa Internet público: 'stub' inyecta un fetch simulado; 'backend-local' levanta course-backend/server.mjs en 127.0.0.1 con puerto libre y elige la variante con X-Course-Scenario.",
+  "fixtures": "Sólo datos ficticios del backend didáctico (reporter-1, campus-inc-001, 'Edificio de prueba A', correos @campusops.test).",
+  "checks": [
+    {
+      "id": "fm-01-respuesta-valida",
+      "status": "pass",
+      "scenarioType": "nominal",
+      "source": "stub",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.failures.test.ts -t \"fm-01\"",
+      "expected": "getById devuelve Incident de dominio construido desde el DTO validado por parseRemoteResource.",
+      "evidence": "PASS. Resultado { id: 'campus-inc-001', categoria: 'connectivity', descripcion: 'Sin conexión en laboratorio ficticio', estado: 'assigned' }; los campos del sobre (version, payload.location, reporterId) no llegan al dominio."
+    },
+    {
+      "id": "fm-02-payload-null-valido",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "source": "stub",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.failures.test.ts -t \"fm-02\"",
+      "expected": "payload null es válido: no lanza error y no inventa categoría ni descripción.",
+      "evidence": "PASS. getById resuelve { id: 'campus-inc-001', categoria: null, descripcion: null, estado: 'assigned' }; ningún IncidentRemoteError."
+    },
+    {
+      "id": "fm-03-json-roto",
+      "status": "pass",
+      "scenarioType": "failure",
+      "source": "stub",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.failures.test.ts -t \"fm-03\"",
+      "expected": "Cuerpo '{\"items\": [}' con HTTP 200 → IncidentRemoteError { kind: 'malformed' } sin SyntaxError suelto.",
+      "evidence": "PASS. getAll rechaza con IncidentRemoteError, failure = { kind: 'malformed' }."
+    },
+    {
+      "id": "fm-04-contrato-version-string",
+      "status": "pass",
+      "scenarioType": "failure",
+      "source": "stub",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.failures.test.ts -t \"fm-04\"",
+      "expected": "DTO con version '1' (string) → parseRemoteResource lo rechaza → { kind: 'contract' }.",
+      "evidence": "PASS. failure = { kind: 'contract' }."
+    },
+    {
+      "id": "fm-05-payload-incompleto",
+      "status": "pass",
+      "scenarioType": "failure",
+      "source": "stub",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.failures.test.ts -t \"fm-05\"",
+      "expected": "payload no nulo sin category → { kind: 'contract' }; no se trata como payload null.",
+      "evidence": "PASS. failure = { kind: 'contract' }; el caso null (fm-02) sigue resolviendo sin error."
+    },
+    {
+      "id": "fm-06-lista-elemento-corrupto",
+      "status": "pass",
+      "scenarioType": "failure",
+      "source": "stub",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.failures.test.ts -t \"fm-06\"",
+      "expected": "Lista con un elemento de id vacío → toda la respuesta se rechaza como contract (no lista parcial).",
+      "evidence": "PASS. failure = { kind: 'contract' }."
+    },
+    {
+      "id": "fm-07-lista-sin-items",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "source": "stub",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.failures.test.ts -t \"fm-07\"",
+      "expected": "Sobre { data: [] } sin items → { kind: 'contract' }.",
+      "evidence": "PASS. failure = { kind: 'contract' }."
+    },
+    {
+      "id": "fm-08-timeout-vs-500",
+      "status": "pass",
+      "scenarioType": "failure",
+      "source": "stub",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.failures.test.ts -t \"fm-08\"",
+      "expected": "fetch que nunca responde con límite de 30 ms → timeout; HTTP 500 → serverError; los kinds son distintos.",
+      "evidence": "PASS. timeout = { kind: 'timeout', timeoutMs: 30 }, 500 = { kind: 'serverError', status: 500 }."
+    },
+    {
+      "id": "fm-09-error-500-detalle",
+      "status": "pass",
+      "scenarioType": "failure",
+      "source": "stub",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.failures.test.ts -t \"fm-09\"",
+      "expected": "HTTP 500 en detalle → { kind: 'serverError', status: 500 }.",
+      "evidence": "PASS. failure = { kind: 'serverError', status: 500 }."
+    },
+    {
+      "id": "fm-10-sin-red",
+      "status": "pass",
+      "scenarioType": "failure",
+      "source": "stub",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.failures.test.ts -t \"fm-10\"",
+      "expected": "fetch rechaza con TypeError('Network request failed') → { kind: 'network' }.",
+      "evidence": "PASS. failure = { kind: 'network' }; el TypeError original no se propaga."
+    },
+    {
+      "id": "fm-11-404-detalle",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "source": "stub",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.failures.test.ts -t \"fm-11\"",
+      "expected": "HTTP 404 en detalle → null (no encontrado), no error.",
+      "evidence": "PASS. getById resuelve null."
+    },
+    {
+      "id": "fm-12-reintento-misma-clave",
+      "status": "pass",
+      "scenarioType": "failure",
+      "source": "stub",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.failures.test.ts -t \"fm-12\"",
+      "expected": "create recibe 500 y luego 201: reintenta una vez reutilizando la misma Idempotency-Key.",
+      "evidence": "PASS. 2 llamadas, Idempotency-Key idéntica en ambas; devuelve campus-inc-101."
+    },
+    {
+      "id": "fm-13-timeout-persistente-create",
+      "status": "pass",
+      "scenarioType": "failure",
+      "source": "stub",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.failures.test.ts -t \"fm-13\"",
+      "expected": "create con timeout en todos los intentos → termina tras 3 intentos con { kind: 'timeout' }, sin bucle infinito.",
+      "evidence": "PASS. attempts = 3, failure.kind = 'timeout'."
+    },
+    {
+      "id": "fm-14-422-no-reintenta",
+      "status": "pass",
+      "scenarioType": "failure",
+      "source": "stub",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.failures.test.ts -t \"fm-14\"",
+      "expected": "HTTP 422 no es reintentable → { kind: 'http', status: 422 } en un solo intento.",
+      "evidence": "PASS. 1 llamada, failure = { kind: 'http', status: 422 }."
+    },
+    {
+      "id": "fm-15-logs-sanitizados",
+      "status": "pass",
+      "scenarioType": "failure",
+      "source": "stub",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.failures.test.ts -t \"fm-15\"",
+      "expected": "Fallas malformed/timeout/500 cuyo cuerpo contiene 'Bearer course-valid-token' y un correo ficticio se registran con failureKind distinto y sin token, correo ni URL.",
+      "evidence": "PASS. failureKind registrados = ['malformed', 'timeout', 'serverError']; error.name = 'IncidentRemoteError' en las 3 entradas; JSON.stringify(entries) no contiene course-valid-token, reportante.ficticio ni stub.invalid."
+    },
+    {
+      "id": "fm-16-log-create-sin-datos",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "source": "stub",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.failures.test.ts -t \"fm-16\"",
+      "expected": "El log de éxito de create no contiene descripción ni ubicación ficticias.",
+      "evidence": "PASS. Entrada incidents.create_succeeded con incidentId 'campus-inc-102'; no aparecen 'Persona ficticia', 'Zona ficticia' ni el token."
+    },
+    {
+      "id": "be-01-success",
+      "status": "pass",
+      "scenarioType": "nominal",
+      "source": "backend-local",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.backend.test.ts -t \"be-01\"",
+      "expected": "Backend local sin X-Course-Scenario de falla: lista contiene campus-inc-001 y el detalle llega como Incident de dominio.",
+      "evidence": "PASS. getAll incluye campus-inc-001; getById devuelve categoria 'connectivity', estado 'assigned'."
+    },
+    {
+      "id": "be-02-nullable",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "source": "backend-local",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.backend.test.ts -t \"be-02\"",
+      "expected": "X-Course-Scenario: nullable → payload null aceptado como incidencia sin detalle.",
+      "evidence": "PASS. { id: 'campus-inc-001', categoria: null, descripcion: null, estado: 'assigned' }."
+    },
+    {
+      "id": "be-03-malformed",
+      "status": "pass",
+      "scenarioType": "failure",
+      "source": "backend-local",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.backend.test.ts -t \"be-03\"",
+      "expected": "X-Course-Scenario: malformed → { kind: 'malformed' }.",
+      "evidence": "PASS. failure = { kind: 'malformed' }."
+    },
+    {
+      "id": "be-04-server-error",
+      "status": "pass",
+      "scenarioType": "failure",
+      "source": "backend-local",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.backend.test.ts -t \"be-04\"",
+      "expected": "X-Course-Scenario: server_error → { kind: 'serverError', status: 500 }.",
+      "evidence": "PASS. failure = { kind: 'serverError', status: 500 }."
+    },
+    {
+      "id": "be-05-slow-timeout",
+      "status": "pass",
+      "scenarioType": "failure",
+      "source": "backend-local",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.backend.test.ts -t \"be-05\"",
+      "expected": "X-Course-Scenario: slow (1200 ms) con timeoutMs 500 → { kind: 'timeout' }.",
+      "evidence": "PASS. failure = { kind: 'timeout', timeoutMs: 500 }."
+    },
+    {
+      "id": "be-06-slow-tolerable",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "source": "backend-local",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.backend.test.ts -t \"be-06\"",
+      "expected": "X-Course-Scenario: slow con timeoutMs 3000 → éxito; la lentitud dentro del límite no es error.",
+      "evidence": "PASS. getAll devuelve campus-inc-001."
+    },
+    {
+      "id": "be-07-crear",
+      "status": "pass",
+      "scenarioType": "nominal",
+      "source": "backend-local",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.backend.test.ts -t \"be-07\"",
+      "expected": "POST /v1/incidents → 201; incident validado y convertido a dominio con estado open.",
+      "evidence": "PASS. Incident { categoria: 'electrical', estado: 'open' }."
+    },
+    {
+      "id": "be-08-crear-server-error",
+      "status": "pass",
+      "scenarioType": "failure",
+      "source": "backend-local",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.backend.test.ts -t \"be-08\"",
+      "expected": "POST con X-Course-Scenario: server_error y maxAttempts 1 → { kind: 'serverError', status: 500 } sin excepción suelta.",
+      "evidence": "PASS. failure = { kind: 'serverError', status: 500 }."
+    },
+    {
+      "id": "curl-nullable",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "source": "curl",
+      "command": "curl -s -H 'Authorization: Bearer course-valid-token' -H 'X-Course-Actor: reporter-1' -H 'X-Course-Scenario: nullable' http://127.0.0.1:4399/v1/incidents/campus-inc-001  (backend: COURSE_BACKEND_PORT=4399 node course-backend/server.mjs)",
+      "expected": "Respuesta cruda del servidor con payload null y HTTP 200.",
+      "evidence": "HTTP 200: {\"id\":\"campus-inc-001\",\"version\":1,\"status\":\"assigned\",\"payload\":null}"
+    },
+    {
+      "id": "curl-malformed",
+      "status": "pass",
+      "scenarioType": "failure",
+      "source": "curl",
+      "command": "curl -s -H 'Authorization: Bearer course-valid-token' -H 'X-Course-Actor: reporter-1' -H 'X-Course-Scenario: malformed' http://127.0.0.1:4399/v1/incidents/campus-inc-001  (backend: COURSE_BACKEND_PORT=4399 node course-backend/server.mjs)",
+      "expected": "Respuesta cruda con JSON roto y HTTP 200 (por eso el cliente no puede confiar sólo en el código HTTP).",
+      "evidence": "HTTP 200: {\"items\": [}"
+    },
+    {
+      "id": "curl-server-error",
+      "status": "pass",
+      "scenarioType": "failure",
+      "source": "curl",
+      "command": "curl -s -H 'Authorization: Bearer course-valid-token' -H 'X-Course-Actor: reporter-1' -H 'X-Course-Scenario: server_error' http://127.0.0.1:4399/v1/incidents/campus-inc-001  (backend: COURSE_BACKEND_PORT=4399 node course-backend/server.mjs)",
+      "expected": "Respuesta cruda 500.",
+      "evidence": "HTTP 500: {\"code\":\"controlled_failure\"}"
+    },
+    {
+      "id": "curl-slow-max-time",
+      "status": "pass",
+      "scenarioType": "failure",
+      "source": "curl",
+      "command": "curl -s -m 0.5 -H 'Authorization: Bearer course-valid-token' -H 'X-Course-Actor: reporter-1' -H 'X-Course-Scenario: slow' http://127.0.0.1:4399/v1/incidents  (backend: COURSE_BACKEND_PORT=4399 node course-backend/server.mjs)",
+      "expected": "Con límite de 0.5 s la respuesta lenta (1.2 s) no llega.",
+      "evidence": "curl exit code 28 (operation timed out), sin cuerpo."
+    },
+    {
+      "id": "suite-completa",
+      "status": "pass",
+      "scenarioType": "nominal",
+      "source": "stub+backend-local",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure src/ui src/application",
+      "expected": "Todas las pruebas de cliente, pantallas y telemetría pasan sobre el commit evaluado.",
+      "evidence": "Test Suites: 5 passed, 5 total; Tests: 43 passed, 43 total."
+    }
+  ]
+}

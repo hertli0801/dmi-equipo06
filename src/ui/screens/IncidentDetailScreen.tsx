@@ -40,8 +40,8 @@ export function IncidentDetailScreen({ repository, incidentId, onBack, telemetry
       {incident === 'error' && <Text testID="incident-detail-error">No se pudo cargar la incidencia.</Text>}
       {incident !== 'loading' && incident !== 'error' && incident !== null && (
         <View>
-          <Text style={styles.title}>{incident.categoria}</Text>
-          <Text>{incident.descripcion}</Text>
+          <Text style={styles.title}>{incident.categoria ?? 'Sin categoría'}</Text>
+          <Text>{incident.descripcion ?? 'Sin detalle disponible.'}</Text>
           <Text style={styles.status}>Estado: {incident.estado}</Text>
         </View>
       )}
