@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "week": 5,
-  "commitSha": "ddbdd58f09ac5a453b522711e75cb80756c9ae0a",
+  "commitSha": "539f9ef4feb3c4917b4fe1e8128737f7ad5368fe",
   "generatedAt": "2026-10-05T01:32:09Z",
   "client": "src/infrastructure/incidents/CloudIncidentRepository.ts",
   "errorTypes": "src/domain/incident/IncidentRemoteError.ts — IncidentRemoteError.failure.kind ∈ contract | malformed | timeout | serverError | http | network",

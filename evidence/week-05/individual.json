@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "week": 5,
+  "teamId": "10A-E06",
+  "members": [
+    {
+      "studentId": "3523110151",
+      "commitShas": [
+        "0adbe0ac109cba573eda6bb376df58bfe4a2088b"
+      ],
+      "files": [
+        "src/domain/incident/IncidentRepository.ts",
+        "src/infrastructure/incidents/CloudIncidentRepository.ts",
+        "src/infrastructure/incidents/InMemoryIncidentRepository.ts",
+        "src/application/incidents/createIncident.ts",
+        "src/application/telemetry/__tests__/Telemetry.test.ts",
+        "src/ui/screens/__tests__/IncidentScreens.telemetry.test.tsx",
+        "reports/week-05/contract-tests.json"
+      ],
+      "tests": [
+        "npx tsc --noEmit",
+        "npx jest src/application/telemetry src/ui/screens"
+      ],
+      "reviews": [
+        "docs/CAMPUSOPS_API.md"
+      ],
+      "prediction": "Esperaba que al agregar create() a IncidentRepository el compilador marcara todas las implementaciones y repositorios falsos existentes, y que un segundo POST a /v1/incidents con la misma Idempotency-Key devolviera la misma incidencia con duplicate: true, sin crear otra.",
+      "command": "npx tsc --noEmit && npx jest src/application/telemetry src/ui/screens",
+      "observedResult": "Antes de actualizar los fakes, tsc reportó 7 errores TS2741/TS2420 por falta de create en InMemoryIncidentRepository y en los dos failingRepository de los tests. Tras agregar create a cada uno, el proyecto compila y jest terminó con 6 suites y 38 tests en PASS. Contra el backend real (make run-backend) registré en reports/week-05/contract-tests.json: GET /v1/incidents 200, GET /v1/incidents/campus-inc-001 200, POST /v1/incidents 201 (campus-inc-102, duplicate: false) y el mismo POST con la misma Idempotency-Key 200 (campus-inc-102, duplicate: true), sin duplicar la incidencia.",
+      "explanation": "Mi aportación fue de código: extendí IncidentRepository con create() y construí CloudIncidentRepository con llamadas HTTP reales a /v1/incidents. Cada respuesta pasa por parseRemoteResource y se valida contra las categorías y estados del dominio antes de construir un Incident, sin usar el JSON crudo. create() genera la Idempotency-Key una sola vez y la reutiliza en todos los reintentos (máximo 3, con timeout, respetando Retry-After y sin reintentar errores 4xx). Agregué el caso de uso createIncident con telemetría que solo registra incidentId y durationMs, sin descripción ni ubicación. Actualicé el repositorio en memoria y los dos repositorios falsos de los tests solo para cumplir la interfaz nueva, sin cambiar lo que los tests verifican."
+    },
+    {
+      "studentId": "3523110817",
+      "commitShas": [
+        "ddbdd58f09ac5a453b522711e75cb80756c9ae0a",
+        "3e7e13cd6ec3984a52e9ce3d9ca5d0a41c52b8d3"
+      ],
+      "files": [
+        "src/domain/incident/IncidentRemoteError.ts",
+        "src/infrastructure/incidents/__tests__/CloudIncidentRepository.failures.test.ts",
+        "src/infrastructure/incidents/__tests__/CloudIncidentRepository.backend.test.ts",
+        "reports/week-05/failure-matrix.json",
+        "docs/api-contract.md"
+      ],
+      "tests": [
+        "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.failures.test.ts",
+        "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.backend.test.ts"
+      ],
+      "reviews": [
+        "docs/api-contract.md",
+        "src/infrastructure/incidents/CloudIncidentRepository.ts"
+      ],
+      "prediction": "Esperaba que, sin tipos de error distinguibles, un payload null valido se pudiera confundir con un fallo, y que un JSON malformado o un timeout propagaran una excepcion generica en vez de un error tipado y manejable por el cliente.",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents",
+      "observedResult": "Las 29 pruebas de la matriz de fallos pasan: payload null valido resuelve como incidencia sin detalle (no error); JSON malformado y errores 500/timeout se distinguen como IncidentRemoteError con kind distinto ('malformed', 'timeout', 'serverError'); una lista con un elemento corrupto se rechaza completa en vez de devolver una lista parcial; los logs de estas fallas quedan sanitizados via redactForTelemetry, sin exponer el token ni el correo ficticio usados en las pruebas.",
+      "explanation": "Mi aportacion de esta semana fue de codigo: cree IncidentRemoteError con los tipos de falla distinguibles (contract, malformed, timeout, serverError, http, network) y los conecte a CloudIncidentRepository, de modo que ninguna falla se propaga como excepcion suelta. Ademas registre la matriz completa de 29 casos en reports/week-05/failure-matrix.json, probando tanto con fetch simulado como contra el backend local via X-Course-Scenario, sin depender de internet real."
+    },
+    {
+      "studentId": "3523110560",
+      "commitShas": [
+        "7889a1f0ba4833acbb8a5da5dd0dbce3c0919f73"
+      ],
+      "files": [
+        "src/course-evaluation/index.ts",
+        "docs/api-contract.md"
+      ],
+      "tests": [
+        "npx jest course-tests/public/week-05.test.ts",
+        "npm run typecheck"
+      ],
+      "reviews": [
+        "docs/CAMPUSOPS_API.md",
+        "src/domain/incident/Incident.ts"
+      ],
+      "prediction": "Esperaba que, al validar el sobre DTO segun la regla de docs/CAMPUSOPS_API.md (id/status no vacios, version entera no negativa, payload objeto o null), los 5 casos del test publico pasaran: el caso con version como string ('3') debia rechazarse por tipo incorrecto, y el caso con payload null debia aceptarse como valido, no como error.",
+      "command": "npx jest course-tests/public/week-05.test.ts && npm run typecheck",
+      "observedResult": "Los 5 casos de course-tests/public/week-05.test.ts pasaron: el DTO completo y el DTO con payload null resolvieron ok:true; el id vacio, la version como string y el input null resolvieron ok:false con error:'contract'. npm run typecheck termino sin errores, confirmando que el resto del proyecto sigue tipando correctamente contra ParseResult.",
+      "explanation": "Mi aportacion de esta semana fue de codigo y documentacion: implemente parseRemoteResource en src/course-evaluation/index.ts siguiendo la regla exacta del contrato (id y status no vacios, version entera no negativa, payload objeto o null, campos extra ignorados, nunca lanza excepcion) y documente en docs/api-contract.md el limite entre el DTO que valida esta funcion y el modelo de dominio Incident que usa el resto de la app, incluyendo por que un payload null es un estado valido y no un error. Esta funcion es la base que usan Oscar (CloudIncidentRepository) y Alberto (matriz de fallos) para validar las respuestas del servidor antes de convertirlas en datos del dominio."
+    }
+  ]
+}
