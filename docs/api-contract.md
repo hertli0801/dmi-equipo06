@@ -31,8 +31,10 @@ Este sobre es intencionalmente genérico: `version` es el control de concurrenci
 El dominio de la aplicación (`src/domain/incident/Incident.ts`) define un tipo distinto y más específico:
 
 ```ts
-{ id: string; categoria: IncidentCategory; descripcion: string; estado: IncidentStatus }
+{ id: string; categoria: IncidentCategory | null; descripcion: string | null; estado: IncidentStatus }
 ```
+
+`categoria` y `descripcion` son `null` sólo cuando el servidor envía `payload: null` válido; las pantallas muestran "Sin detalle disponible." en lugar de inventar valores.
 
 **Por qué no se usa el DTO directamente en las pantallas:**
 
@@ -50,10 +52,21 @@ El dominio de la aplicación (`src/domain/incident/Incident.ts`) define un tipo 
 { ok: false; error: 'contract' }
 ```
 
-`error: 'contract'` cubre cualquier violación de forma del sobre (id/status vacío, version no entera o negativa, payload de tipo incorrecto). Los demás tipos de fallo — reservados para la capa de cliente HTTP, fuera de esta función — se distinguen como:
+`error: 'contract'` cubre cualquier violación de forma del sobre (id/status vacío, version no entera o negativa, payload de tipo incorrecto).
 
-- `{ kind: 'malformed' }` — la respuesta no es JSON válido.
-- `{ kind: 'timeout' }` — la petición no obtuvo respuesta dentro del límite esperado.
-- `{ kind: 'serverError', status: number }` — el servidor respondió con un código de error (ej. 500).
+La capa de cliente (`src/infrastructure/incidents/CloudIncidentRepository.ts`) convierte toda falla en un `IncidentRemoteError` (`src/domain/incident/IncidentRemoteError.ts`) con un campo `failure` tipado:
 
-Ningún caso de error se representa lanzando una excepción sin capturar: todos quedan como datos tipados que el cliente puede inspeccionar y la UI puede mostrar de forma distinta (reintentar, avisar que no hay conexión, etc.).
+| `failure.kind` | Cuándo ocurre | ¿Reintenta `create`? |
+|---|---|---|
+| `contract` | JSON válido que `parseRemoteResource` rechaza, `items` ausente, un elemento de la lista corrupto, o payload no nulo sin `category`/`description` válidos. | No |
+| `malformed` | El cuerpo de la respuesta no es JSON válido. | No |
+| `timeout` (`timeoutMs`) | No hubo respuesta completa dentro del límite del cliente (8 s por defecto, `AbortController`). | Sí, con la misma `Idempotency-Key` |
+| `serverError` (`status`) | El servidor respondió 5xx. | Sí, con la misma `Idempotency-Key` |
+| `http` (`status`, `retryAfter?`) | Otro código de error (401, 403, 409, 422, 429…). | Sólo 429 |
+| `network` | `fetch` falló sin respuesta (servidor apagado, sin red). | Sí |
+
+Casos que **no** son error: `payload: null` válido (incidencia sin detalle) y `404` en detalle (`getById` devuelve `null`).
+
+El mensaje del `IncidentRemoteError` es fijo y nunca incluye URL, headers ni cuerpo de la respuesta. Los casos de uso registran el error con `failureKind` en el contexto, y la telemetría sigue pasando por `redactForTelemetry` y `scrubTelemetryText` (semana 4). Las pantallas capturan el rechazo y muestran un mensaje genérico, así que ninguna excepción queda sin controlar.
+
+La matriz completa de casos y resultados observados está en `reports/week-05/failure-matrix.json`.

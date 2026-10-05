@@ -1,7 +1,8 @@
 import type { IncidentCategory, IncidentStatus } from '../../campusops/contracts';
 import type { Incident } from '../../domain/incident/Incident';
 import type { IncidentRepository } from '../../domain/incident/IncidentRepository';
-import { parseRemoteResource } from '../../course-evaluation'; // ajusta el import real una vez que exista en main
+import { IncidentRemoteError } from '../../domain/incident/IncidentRemoteError';
+import { parseRemoteResource } from '../../course-evaluation';
 
 const DEFAULT_URL = 'http://127.0.0.1:4310';
 const MAX_ATTEMPTS = 3;
@@ -18,26 +19,53 @@ const STATUSES: readonly IncidentStatus[] = [
 
 type Resource = { id: string; status: string; payload: Record<string, unknown> | null };
 
-const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+/** Dependencias sustituibles: las pruebas usan un fetch simulado y no necesitan Internet. */
+export type CloudIncidentRepositoryOptions = Readonly<{
+  fetchImpl?: typeof fetch;
+  timeoutMs?: number;
+  maxAttempts?: number;
+  /** Headers adicionales, p. ej. `X-Course-Scenario` para reproducir fallas del backend didáctico. */
+  extraHeaders?: Readonly<Record<string, string>>;
+  sleep?: (ms: number) => Promise<void>;
+}>;
 
-function retryDelayMs(response: Response | null, attempt: number): number {
-  const header = response?.headers.get('Retry-After');
-  const seconds = header == null ? NaN : Number(header);
+type RawResponse = Readonly<{ status: number; body: unknown }>;
+
+const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+function retryDelayMs(error: IncidentRemoteError, attempt: number): number {
+  const retryAfter = error.failure.kind === 'http' ? error.failure.retryAfter : undefined;
+  const seconds = retryAfter == null ? NaN : Number(retryAfter);
   if (Number.isFinite(seconds) && seconds >= 0) return Math.min(seconds * 1000, MAX_DELAY_MS);
   return Math.min(300 * 2 ** (attempt - 1), MAX_DELAY_MS);
 }
 
+function isRetryable(error: IncidentRemoteError): boolean {
+  const { failure } = error;
+  return (
+    failure.kind === 'timeout' ||
+    failure.kind === 'network' ||
+    failure.kind === 'serverError' ||
+    (failure.kind === 'http' && failure.status === 429)
+  );
+}
+
+/** DTO validado → objeto de dominio. Un payload `null` válido no se rellena con datos inventados. */
 function toIncident(resource: Resource): Incident {
+  if (!STATUSES.includes(resource.status as IncidentStatus)) {
+    throw new IncidentRemoteError({ kind: 'contract' });
+  }
   const p = resource.payload;
+  if (p === null) {
+    return { id: resource.id, categoria: null, descripcion: null, estado: resource.status as IncidentStatus };
+  }
   if (
-    p === null ||
     typeof p.category !== 'string' ||
     !CATEGORIES.includes(p.category as IncidentCategory) ||
     typeof p.description !== 'string' ||
-    p.description.trim() === '' ||
-    !STATUSES.includes(resource.status as IncidentStatus)
+    p.description.trim() === ''
   ) {
-    throw new Error('Incidencia remota inválida');
+    throw new IncidentRemoteError({ kind: 'contract' });
   }
   return {
     id: resource.id,
@@ -49,89 +77,126 @@ function toIncident(resource: Resource): Incident {
 
 function parseIncident(raw: unknown): Incident {
   const parsed = parseRemoteResource(raw);
-  if (!parsed.ok) throw new Error('Respuesta del servidor no cumple el contrato esperado');
+  if (!parsed.ok) throw new IncidentRemoteError({ kind: 'contract' });
   return toIncident(parsed.value as Resource);
 }
 
 export class CloudIncidentRepository implements IncidentRepository {
+  private readonly fetchImpl: typeof fetch;
+  private readonly timeoutMs: number;
+  private readonly maxAttempts: number;
+  private readonly extraHeaders: Readonly<Record<string, string>>;
+  private readonly sleep: (ms: number) => Promise<void>;
+
   constructor(
     private readonly actorId: string,
     private readonly accessToken: string,
     private readonly baseUrl: string = process.env.EXPO_PUBLIC_COURSE_BACKEND_URL ?? DEFAULT_URL,
-  ) {}
+    options: CloudIncidentRepositoryOptions = {},
+  ) {
+    this.fetchImpl = options.fetchImpl ?? ((input, init) => fetch(input, init));
+    this.timeoutMs = options.timeoutMs ?? TIMEOUT_MS;
+    this.maxAttempts = options.maxAttempts ?? MAX_ATTEMPTS;
+    this.extraHeaders = options.extraHeaders ?? {};
+    this.sleep = options.sleep ?? defaultSleep;
+  }
 
-  private authHeaders() {
+  private authHeaders(): Record<string, string> {
     return {
+      ...this.extraHeaders,
       'Content-Type': 'application/json',
       Authorization: `Bearer ${this.accessToken}`,
       'X-Course-Actor': this.actorId,
     };
   }
 
-  async getAll(): Promise<readonly Incident[]> {
-    const response = await fetch(`${this.baseUrl}/v1/incidents`, { headers: this.authHeaders() });
-    if (!response.ok) throw new Error(`No fue posible listar incidencias (${response.status})`);
-    const raw: unknown = await response.json();
-    const items = Array.isArray((raw as { items?: unknown })?.items)
-      ? (raw as { items: unknown[] }).items
-      : [];
-    const result: Incident[] = [];
-    for (const item of items) {
+  /**
+   * Única salida HTTP del cliente. Toda falla se convierte en IncidentRemoteError;
+   * nunca se propaga un AbortError, TypeError o SyntaxError sin clasificar.
+   */
+  private async send(path: string, init: RequestInit = {}): Promise<RawResponse> {
+    const controller = new AbortController();
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, this.timeoutMs);
+    try {
+      let response: Response;
       try {
-        result.push(parseIncident(item));
+        response = await this.fetchImpl(`${this.baseUrl}${path}`, {
+          ...init,
+          headers: { ...this.authHeaders(), ...(init.headers as Record<string, string> | undefined) },
+          signal: controller.signal,
+        });
       } catch {
-        // descarta el elemento inválido; no registres datos sensibles aquí
+        throw new IncidentRemoteError(timedOut ? { kind: 'timeout', timeoutMs: this.timeoutMs } : { kind: 'network' });
       }
+      if (response.status >= 500) throw new IncidentRemoteError({ kind: 'serverError', status: response.status });
+      if (response.status === 404) return { status: 404, body: null };
+      if (!response.ok) {
+        const retryAfter = response.headers?.get('Retry-After');
+        throw new IncidentRemoteError(
+          retryAfter == null
+            ? { kind: 'http', status: response.status }
+            : { kind: 'http', status: response.status, retryAfter },
+        );
+      }
+
+      let text: string;
+      try {
+        text = await response.text();
+      } catch {
+        throw new IncidentRemoteError(timedOut ? { kind: 'timeout', timeoutMs: this.timeoutMs } : { kind: 'network' });
+      }
+      try {
+        return { status: response.status, body: JSON.parse(text) as unknown };
+      } catch {
+        throw new IncidentRemoteError({ kind: 'malformed' });
+      }
+    } finally {
+      clearTimeout(timer);
     }
-    return result;
+  }
+
+  async getAll(): Promise<readonly Incident[]> {
+    const { body } = await this.send('/v1/incidents');
+    const items = (body as { items?: unknown } | null)?.items;
+    if (!Array.isArray(items)) throw new IncidentRemoteError({ kind: 'contract' });
+    // Un solo elemento corrupto invalida la respuesta: no se muestra una lista parcial como si estuviera completa.
+    return items.map(parseIncident);
   }
 
   async getById(id: string): Promise<Incident | null> {
-    const response = await fetch(`${this.baseUrl}/v1/incidents/${encodeURIComponent(id)}`, {
-      headers: this.authHeaders(),
-    });
-    if (response.status === 404) return null;
-    if (!response.ok) throw new Error(`No fue posible consultar la incidencia (${response.status})`);
-    return parseIncident(await response.json());
+    const { status, body } = await this.send(`/v1/incidents/${encodeURIComponent(id)}`);
+    if (status === 404) return null;
+    return parseIncident(body);
   }
 
   async create(input: { categoria: string; descripcion: string; location: string }): Promise<Incident> {
-    const idempotencyKey = `inc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`; // UNA vez, fuera del bucle // UNA vez, fuera del bucle de reintentos
+    // UNA clave por intento de creación, generada fuera del bucle: los reintentos la reutilizan.
+    const idempotencyKey = `inc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
     const body = JSON.stringify({
       category: input.categoria,
       description: input.descripcion,
       location: input.location,
     });
 
-    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-      let response: Response | null = null;
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    for (let attempt = 1; ; attempt++) {
       try {
-        response = await fetch(`${this.baseUrl}/v1/incidents`, {
+        const response = await this.send('/v1/incidents', {
           method: 'POST',
-          headers: { ...this.authHeaders(), 'Idempotency-Key': idempotencyKey }, // misma clave siempre
+          headers: { 'Idempotency-Key': idempotencyKey },
           body,
-          signal: controller.signal,
         });
-      } catch {
-        response = null; // timeout o red caída: el servidor pudo haber guardado
-      } finally {
-        clearTimeout(timer);
+        if (response.status === 404) throw new IncidentRemoteError({ kind: 'http', status: 404 });
+        return parseIncident((response.body as { incident?: unknown } | null)?.incident);
+      } catch (error) {
+        if (!(error instanceof IncidentRemoteError) || !isRetryable(error) || attempt >= this.maxAttempts) {
+          throw error;
+        }
+        await this.sleep(retryDelayMs(error, attempt));
       }
-
-           if (response?.ok) {
-        const raw: unknown = await response.json();
-        const envelope = (raw as { incident?: unknown })?.incident;
-        return parseIncident(envelope);
-      }
-
-      const retryable = response === null || response.status === 429 || response.status >= 500;
-      if (!retryable || attempt === MAX_ATTEMPTS) {
-        throw new Error(`No fue posible crear la incidencia (${response?.status ?? 'sin respuesta'})`);
-      }
-      await sleep(retryDelayMs(response, attempt));
     }
-    throw new Error('No fue posible crear la incidencia');
   }
 }
