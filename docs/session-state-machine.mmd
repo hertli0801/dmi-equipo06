@@ -1,0 +1,15 @@
+stateDiagram-v2
+    [*] --> anonimo
+
+    anonimo --> autenticado: login exitoso (fuera de coordinateRefresh)
+
+    autenticado --> renovando: request401 (primera peticion de esa generation,\ndispara UN refresh)
+    renovando --> renovando: request401 (misma generation,\nse encola el requestId, no dispara otro refresh)
+
+    renovando --> autenticado: refreshSucceeded\n(nueva generation, reintenta requestIds encolados)
+    renovando --> anonimo: refreshFailed\n(se descarta lo pendiente, token y generation en null)
+
+    autenticado --> anonimo: logout
+    renovando --> anonimo: logout
+
+    anonimo --> [*]

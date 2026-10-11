@@ -44,14 +44,72 @@ export function parseRemoteResource(input: unknown): ParseResult {
   return { ok: true, value: { id, version, status, payload: payload as JsonObject | null } };
 }
 
-export function coordinateRefresh(_events: readonly AuthEvent[]): Readonly<{
+export function coordinateRefresh(events: readonly AuthEvent[]): Readonly<{
   status: 'anonymous' | 'authenticated';
   activeGeneration: number | null;
   refreshCalls: number;
   retriedRequestIds: readonly string[];
   persistedToken: string | null;
 }> {
-  return pending('coordinateRefresh');
+  let status: 'anonymous' | 'authenticated' = 'anonymous';
+  let activeGeneration: number | null = null;
+  let refreshCalls = 0;
+  let persistedToken: string | null = null;
+  const retriedRequestIds: string[] = [];
+
+  const pendingByGeneration = new Map<number, string[]>();
+  const refreshStartedForGeneration = new Set<number>();
+
+  for (const event of events) {
+    switch (event.type) {
+      case 'request401': {
+        const generation = event.generation ?? 0;
+        if (!pendingByGeneration.has(generation)) {
+          pendingByGeneration.set(generation, []);
+        }
+        if (event.requestId) {
+          pendingByGeneration.get(generation)!.push(event.requestId);
+        }
+        if (!refreshStartedForGeneration.has(generation)) {
+          refreshStartedForGeneration.add(generation);
+          refreshCalls += 1;
+        }
+        break;
+      }
+
+      case 'refreshSucceeded': {
+        const newGeneration: number = event.generation ?? (activeGeneration ?? 0) + 1;
+        const previousGeneration = newGeneration - 1;
+        const waiting = pendingByGeneration.get(previousGeneration) ?? [];
+        retriedRequestIds.push(...waiting);
+        pendingByGeneration.delete(previousGeneration);
+        activeGeneration = newGeneration;
+        persistedToken = event.token ?? persistedToken;
+        status = 'authenticated';
+        break;
+      }
+
+      case 'refreshFailed': {
+        const failedGeneration = event.generation ?? activeGeneration ?? 0;
+        pendingByGeneration.delete(failedGeneration);
+        status = 'anonymous';
+        activeGeneration = null;
+        persistedToken = null;
+        break;
+      }
+
+      case 'logout': {
+        status = 'anonymous';
+        activeGeneration = null;
+        persistedToken = null;
+        pendingByGeneration.clear();
+        refreshStartedForGeneration.clear();
+        break;
+      }
+    }
+  }
+
+  return { status, activeGeneration, refreshCalls, retriedRequestIds, persistedToken };
 }
 
 export function resolveSync(
