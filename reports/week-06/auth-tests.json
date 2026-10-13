@@ -1,0 +1,155 @@
+{
+  "schemaVersion": 1,
+  "week": 6,
+  "commitSha": "9cda6338a7e7d792d3ea65e837d559601adfb65a",
+  "generatedAt": "2026-10-13T04:11:59Z",
+  "sessionOwner": "src/infrastructure/session/SessionCoordinator.ts",
+  "secureStorage": "src/infrastructure/session/secureSession.ts (expo-secure-store; en pruebas se inyecta un SessionStore en memoria)",
+  "clock": "SessionCoordinator acepta `now: () => number`; las pruebas usan un reloj manual que sólo avanza con advance(ms), sin esperas reales.",
+  "testFiles": [
+    "src/infrastructure/session/__tests__/SessionLifecycle.test.ts",
+    "src/infrastructure/session/__tests__/SessionCoordinator.test.ts",
+    "src/infrastructure/session/__tests__/SessionConcurrency.backend.test.ts",
+    "src/application/incidents/__tests__/performIncidentAction.test.ts",
+    "course-tests/public/week-06.test.ts"
+  ],
+  "fixtures": "Sólo actores y tokens ficticios del backend didáctico (reporter-1, technician-1, technician-2, coordinator-1, course-valid-token, course-refresh-0/1).",
+  "checks": [
+    {
+      "id": "auth-01-login-valido",
+      "status": "pass",
+      "scenarioType": "nominal",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/session/__tests__/SessionLifecycle.test.ts -t \"auth-01\"",
+      "expected": "Tras login la sesión es vigente durante expiresIn (60 s).",
+      "evidence": "PASS. isExpired() === false justo después del login y tras avanzar el reloj 59 999 ms."
+    },
+    {
+      "id": "auth-01b-login-actor-desconocido",
+      "status": "pass",
+      "scenarioType": "failure",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/session/__tests__/SessionCoordinator.test.ts -t \"actor desconocido\"",
+      "expected": "401 unknown_fixture_actor → IncidentRemoteError y ninguna sesión creada.",
+      "evidence": "PASS. login('nadie') rechaza con failure { kind: 'http', status: 401 }; getSession() === null."
+    },
+    {
+      "id": "auth-02-expiracion-limite-exacto",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/session/__tests__/SessionLifecycle.test.ts -t \"auth-02\"",
+      "expected": "Con el reloj en login + 60 000 ms el access token se considera expirado.",
+      "evidence": "PASS. isExpired() pasa de false (59 999 ms) a true (60 000 ms) sin esperas reales."
+    },
+    {
+      "id": "auth-03-refresh-reinicia-ventana",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/session/__tests__/SessionLifecycle.test.ts -t \"auth-03\"",
+      "expected": "Un refresh exitoso calcula la nueva expiración desde el reloj actual.",
+      "evidence": "PASS. Tras refresh en t=60 s: vigente en t+59 999 ms y expirado en t+60 000 ms."
+    },
+    {
+      "id": "auth-04-sin-sesion",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/session/__tests__/SessionLifecycle.test.ts -t \"auth-04\"",
+      "expected": "Sin login no hay sesión que expire ni refresh que hacer.",
+      "evidence": "PASS. isExpired() === false y 0 llamadas a /v1/session/refresh."
+    },
+    {
+      "id": "auth-05-logout-con-refresh-en-vuelo",
+      "status": "pass",
+      "scenarioType": "failure",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/session/__tests__/SessionLifecycle.test.ts -t \"auth-05\"",
+      "expected": "Si el usuario cierra sesión mientras un refresh está en vuelo, la respuesta tardía se descarta y no vuelve a guardar tokens.",
+      "evidence": "PASS. El refresh pendiente resuelve null; store, access token y sesión quedan en null; onSessionExpired no se llama. Antes del cambio esta prueba fallaba: la respuesta tardía guardaba course-refresh-1 después del logout."
+    },
+    {
+      "id": "auth-06-refresh-fallido-obsoleto",
+      "status": "pass",
+      "scenarioType": "failure",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/session/__tests__/SessionLifecycle.test.ts -t \"auth-06\"",
+      "expected": "Un refresh que falla tarde (de una sesión anterior a un nuevo login) no cierra la sesión nueva.",
+      "evidence": "PASS. Tras logout + login nuevo, el invalid_grant tardío resuelve null; la sesión technician-1, el access token y course-refresh-0 siguen intactos; onSessionExpired no se llama."
+    },
+    {
+      "id": "auth-07-refresh-token-rotado",
+      "status": "pass",
+      "scenarioType": "failure",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/session/__tests__/SessionLifecycle.test.ts -t \"auth-07\"",
+      "expected": "invalid_grant → sesión limpia, aviso único, sin nuevos intentos.",
+      "evidence": "PASS. 1 llamada a /v1/session/refresh; dos refresh() devuelven null; store === null; onSessionExpired llamado 1 vez."
+    },
+    {
+      "id": "auth-07b-refresh-rotado-backend-real",
+      "status": "pass",
+      "scenarioType": "failure",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/session/__tests__/SessionConcurrency.backend.test.ts -t \"be-02\"",
+      "expected": "Con course-backend/server.mjs: tras consumir course-refresh-0, el segundo refresh con course-refresh-1 es rechazado y la app vuelve a no autenticado.",
+      "evidence": "PASS. 2 llamadas reales a /v1/session/refresh (la segunda invalid_grant); las 3 peticiones concurrentes rechazan; onSessionExpired 1 vez; store === null; getSession() === null."
+    },
+    {
+      "id": "auth-08-logout-limpia-sesion",
+      "status": "pass",
+      "scenarioType": "nominal",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/session/__tests__/SessionLifecycle.test.ts -t \"auth-08\"",
+      "expected": "logout borra el refresh token persistido y el access token en memoria; un 401 posterior no dispara refresh.",
+      "evidence": "PASS. Último write del store = null (clear); getAccessToken() === null; refresh() tras logout devuelve null con 0 llamadas a /v1/session/refresh."
+    },
+    {
+      "id": "auth-08b-logout-backend-real",
+      "status": "pass",
+      "scenarioType": "nominal",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/session/__tests__/SessionConcurrency.backend.test.ts -t \"be-03\"",
+      "expected": "Con backend real: tras logout no queda refresh token y la siguiente petición falla con 401 sin renovar.",
+      "evidence": "PASS. store === null; getAll rechaza { kind: 'http', status: 401 }; 0 llamadas a /v1/session/refresh."
+    },
+    {
+      "id": "auth-08c-logout-modelo-publico",
+      "status": "pass",
+      "scenarioType": "nominal",
+      "command": "npm test -- --ci --runInBand course-tests/public/week-06.test.ts",
+      "expected": "coordinateRefresh([{ type: 'logout' }]).persistedToken === null y 401 concurrentes → un solo refresh.",
+      "evidence": "PASS. 2/2 pruebas públicas de la semana 6."
+    },
+    {
+      "id": "auth-09-tokens-fuera-de-logs",
+      "status": "pass",
+      "scenarioType": "failure",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/session/__tests__/SessionLifecycle.test.ts -t \"auth-09\"",
+      "expected": "Ni la telemetría, ni los eventos AuthEvent, ni la consola contienen course-valid-token o course-refresh-N, aun cuando el error trae un header Bearer y el contexto incluye accessToken/refreshToken.",
+      "evidence": "PASS. La serialización de entradas de telemetría, eventos y llamadas a console.* no coincide con /course-valid-token|course-refresh-\\d/. Además `grep -rn console src | grep -i token` (sin pruebas) no devuelve líneas."
+    },
+    {
+      "id": "authz-01-tecnico-no-asignado",
+      "status": "pass",
+      "scenarioType": "failure",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/application/incidents/__tests__/performIncidentAction.test.ts -t \"NO asignado\"",
+      "expected": "Técnico que intenta resolver una incidencia asignada a otro: ForbiddenActionError sin llamar al servidor.",
+      "evidence": "PASS. Rechaza con ForbiddenActionError; performAction no se llama."
+    },
+    {
+      "id": "authz-02-tecnico-asignado-resuelve",
+      "status": "pass",
+      "scenarioType": "nominal",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/application/incidents/__tests__/performIncidentAction.test.ts -t \"asignado puede resolver\"",
+      "expected": "Técnico asignado resuelve con la versión leída.",
+      "evidence": "PASS. performAction('campus-inc-001', 'resolve', 3, { diagnosis: 'ok' })."
+    },
+    {
+      "id": "authz-03-coordinador-cierra-reportante-no",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/application/incidents/__tests__/performIncidentAction.test.ts -t \"coordinador cierra\"",
+      "expected": "coordinator-1 puede cerrar; reporter-1 recibe ForbiddenActionError.",
+      "evidence": "PASS. close como coordinador resuelve; close como reportante rechaza con ForbiddenActionError."
+    },
+    {
+      "id": "authz-04-roles-backend-real",
+      "status": "pass",
+      "scenarioType": "failure",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/session/__tests__/SessionRefresh.backend.test.ts -t \"técnico asignado\"",
+      "expected": "Con login real: technician-1 inicia campus-inc-001; technician-2 no puede resolverla.",
+      "evidence": "PASS. start → estado 'in_progress'; resolve de technician-2 rechaza con ForbiddenActionError."
+    }
+  ]
+}
