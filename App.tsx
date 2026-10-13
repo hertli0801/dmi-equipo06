@@ -1,16 +1,16 @@
-import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 
 import { getBackendHealth } from './src/api/courseBackend';
 import { createTelemetry } from './src/application/telemetry/Telemetry';
-import { InMemoryIncidentRepository } from './src/infrastructure/incidents/InMemoryIncidentRepository';
+import { CloudIncidentRepository } from './src/infrastructure/incidents/CloudIncidentRepository';
+import { SessionCoordinator, type Session } from './src/infrastructure/session/SessionCoordinator';
 import { ConsoleTelemetrySink } from './src/infrastructure/telemetry/ConsoleTelemetrySink';
 import { IncidentDetailScreen } from './src/ui/screens/IncidentDetailScreen';
 import { IncidentListScreen } from './src/ui/screens/IncidentListScreen';
+import { LoginScreen } from './src/ui/screens/LoginScreen';
 
-// Composition root: the only place allowed to know about the Infrastructure implementation.
-const incidentRepository = new InMemoryIncidentRepository();
 // Todo log pasa por redactForTelemetry antes de llegar a la consola.
 const telemetry = createTelemetry(new ConsoleTelemetrySink());
 
@@ -19,6 +19,30 @@ type Route = Readonly<{ name: 'list' }> | Readonly<{ name: 'detail'; incidentId:
 export default function App() {
   const [status, setStatus] = useState<'checking' | 'available' | 'offline'>('checking');
   const [route, setRoute] = useState<Route>({ name: 'list' });
+  const [session, setSession] = useState<Session | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  // Composition root: único lugar que conoce las implementaciones de Infrastructure.
+  const coordinator = useMemo(
+    () =>
+      new SessionCoordinator({
+        onSessionExpired: () => {
+          setSession(null);
+          setRoute({ name: 'list' });
+          setNotice('Tu sesión expiró. Inicia sesión de nuevo.');
+        },
+      }),
+    [],
+  );
+  const repository = useMemo(
+    () =>
+      session
+        ? new CloudIncidentRepository(session.actorId, coordinator.getAccessToken() ?? '', undefined, {
+            session: coordinator,
+          })
+        : null,
+    [session, coordinator],
+  );
 
   useEffect(() => {
     let active = true;
@@ -33,25 +57,50 @@ export default function App() {
     };
   }, []);
 
+  async function handleLogin(actorId: string) {
+    const next = await coordinator.login(actorId);
+    setNotice(null);
+    setRoute({ name: 'list' });
+    setSession(next);
+  }
+
+  async function handleLogout() {
+    await coordinator.logout();
+    setSession(null);
+    setRoute({ name: 'list' });
+    setNotice(null);
+  }
+
   return (
     <View style={styles.screen}>
       <View accessibilityRole="summary" style={styles.card}>
         <Text style={styles.title}>CampusOps</Text>
         <Text>Incidencias del campus · entorno académico ficticio</Text>
         <Text testID="backend-status">Backend: {status}</Text>
+        {session ? (
+          <Pressable testID="logout-button" onPress={() => void handleLogout()}>
+            <Text style={styles.link}>
+              {session.actorId} ({session.role}) · Cerrar sesión
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
-      {route.name === 'list' ? (
+      {!session || !repository ? (
+        <LoginScreen onLogin={handleLogin} notice={notice} />
+      ) : route.name === 'list' ? (
         <IncidentListScreen
-          repository={incidentRepository}
+          repository={repository}
           telemetry={telemetry}
           onSelectIncident={(incidentId) => setRoute({ name: 'detail', incidentId })}
         />
       ) : (
         <IncidentDetailScreen
           key={route.incidentId}
-          repository={incidentRepository}
+          repository={repository}
           telemetry={telemetry}
           incidentId={route.incidentId}
+          actor={session}
+          actions={repository}
           onBack={() => setRoute({ name: 'list' })}
         />
       )}
@@ -64,4 +113,5 @@ const styles = StyleSheet.create({
   screen: { flex: 1, padding: 24 },
   card: { gap: 12, paddingBottom: 20 },
   title: { fontSize: 24, fontWeight: '700' },
+  link: { color: '#2563eb' },
 });
