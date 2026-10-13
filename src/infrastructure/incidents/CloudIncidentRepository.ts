@@ -182,6 +182,13 @@ export class CloudIncidentRepository implements IncidentRepository, IncidentActi
     const session = this.session;
     const generation = session?.getGeneration() ?? 0;
     const token = session?.getAccessToken() ?? this.accessToken;
+    if (session?.isExpired?.()) {
+      // Expiración conocida por reloj: se renueva antes de enviar (mismo refresh compartido) y sin 401.
+      this.requestCounter += 1;
+      const fresh = await session.refresh(generation, `req-${this.requestCounter}`);
+      if (fresh === null) throw new IncidentRemoteError({ kind: 'http', status: 401 });
+      return this.sendOnce(path, init, fresh); // ya se renovó: un 401 aquí se propaga, sin bucle
+    }
     try {
       return await this.sendOnce(path, init, token);
     } catch (error) {

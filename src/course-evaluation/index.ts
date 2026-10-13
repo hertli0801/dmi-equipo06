@@ -55,6 +55,10 @@ export function coordinateRefresh(events: readonly AuthEvent[]): Readonly<{
   let activeGeneration: number | null = null;
   let refreshCalls = 0;
   let persistedToken: string | null = null;
+  // Tras logout o refresh fallido la sesión queda cerrada: no se renueva más (sin bucle)
+  // y una respuesta tardía no puede volver a persistir un token.
+  let closed = false;
+  let latestGeneration = -1;
   const retriedRequestIds: string[] = [];
 
   const pendingByGeneration = new Map<number, string[]>();
@@ -63,7 +67,13 @@ export function coordinateRefresh(events: readonly AuthEvent[]): Readonly<{
   for (const event of events) {
     switch (event.type) {
       case 'request401': {
+        if (closed) break;
         const generation = event.generation ?? 0;
+        // La petición usaba un token ya renovado: se reintenta con el vigente, sin otro refresh.
+        if (activeGeneration !== null && generation < activeGeneration) {
+          if (event.requestId) retriedRequestIds.push(event.requestId);
+          break;
+        }
         if (!pendingByGeneration.has(generation)) {
           pendingByGeneration.set(generation, []);
         }
@@ -79,11 +89,14 @@ export function coordinateRefresh(events: readonly AuthEvent[]): Readonly<{
 
       case 'refreshSucceeded': {
         const newGeneration: number = event.generation ?? (activeGeneration ?? 0) + 1;
+        // Respuesta obsoleta: no pisa una generación más nueva ni revive una sesión cerrada.
+        if (closed || newGeneration <= latestGeneration) break;
         const previousGeneration = newGeneration - 1;
         const waiting = pendingByGeneration.get(previousGeneration) ?? [];
         retriedRequestIds.push(...waiting);
         pendingByGeneration.delete(previousGeneration);
         activeGeneration = newGeneration;
+        latestGeneration = newGeneration;
         persistedToken = event.token ?? persistedToken;
         status = 'authenticated';
         break;
@@ -91,10 +104,13 @@ export function coordinateRefresh(events: readonly AuthEvent[]): Readonly<{
 
       case 'refreshFailed': {
         const failedGeneration = event.generation ?? activeGeneration ?? 0;
-        pendingByGeneration.delete(failedGeneration);
+        // Un fallo de una generación ya superada no cierra la sesión vigente.
+        if (failedGeneration < latestGeneration) break;
+        pendingByGeneration.clear();
         status = 'anonymous';
         activeGeneration = null;
         persistedToken = null;
+        closed = true;
         break;
       }
 
@@ -102,6 +118,7 @@ export function coordinateRefresh(events: readonly AuthEvent[]): Readonly<{
         status = 'anonymous';
         activeGeneration = null;
         persistedToken = null;
+        closed = true;
         pendingByGeneration.clear();
         refreshStartedForGeneration.clear();
         break;
