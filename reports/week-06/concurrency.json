@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "week": 6,
-  "commitSha": "cb4b22b9dfa3824466d09e4f590e322c383d41fc",
+  "commitSha": "62a03291fd6d3de2d59ffda51fa8e03aa0167773",
   "generatedAt": "2026-10-13T04:11:59Z",
   "refreshPolicy": "Single-flight por generación en SessionCoordinator.refresh(): la primera petición con 401 (o con token expirado por reloj) crea la promesa de refresh y las demás de la misma generación esperan esa misma promesa. Cada petición reintenta como máximo una vez; un segundo 401 se propaga. Si el refresh falla se llama clearSession() y onSessionExpired una sola vez.",
   "staleResponses": "Una respuesta de refresh cuya generación ya no es la vigente (hubo logout o login nuevo mientras volaba) se descarta sin persistir tokens ni cerrar la sesión nueva. coordinateRefresh aplica la misma regla a eventos refreshSucceeded/refreshFailed obsoletos.",
