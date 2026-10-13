@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "week": 6,
-  "commitSha": "cb4b22b9dfa3824466d09e4f590e322c383d41fc",
+  "commitSha": "62a03291fd6d3de2d59ffda51fa8e03aa0167773",
   "decision": "La politica de renovacion es single-flight por generacion de sesion: coordinateRefresh agrupa los eventos request401 por su campo generation y solo dispara una renovacion real la primera vez que aparece una generacion sin resolver (refreshCalls += 1 una sola vez); las peticiones adicionales de la misma generacion se encolan en pendingByGeneration y se reintentan en bloque (retriedRequestIds) cuando llega refreshSucceeded. Si la renovacion falla (refreshFailed), la sesion regresa de forma segura a status: 'anonymous' con persistedToken y activeGeneration en null, sin reintentar automaticamente ni dejar peticiones colgadas.",
   "alternatives": [
     "Cada peticion que recibe 401 dispara su propio refresh de forma independiente, sin coordinacion entre ellas.",
