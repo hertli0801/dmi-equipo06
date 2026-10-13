@@ -6,6 +6,7 @@ import { clearSession, readRefreshToken, saveRefreshToken } from './secureSessio
 
 const DEFAULT_URL = 'http://127.0.0.1:4310';
 const TIMEOUT_MS = 8000;
+const DEFAULT_EXPIRES_IN_S = 60;
 const ROLES: readonly CampusRole[] = ['reporter', 'technician', 'coordinator'];
 
 export type Session = Readonly<{ actorId: string; role: CampusRole }>;
@@ -20,6 +21,8 @@ export type SessionCoordinatorOptions = Readonly<{
   baseUrl?: string;
   fetchImpl?: typeof fetch;
   store?: SessionStore;
+  /** Reloj inyectable: las pruebas avanzan el tiempo sin esperar de verdad. */
+  now?: () => number;
   /** La app vuelve al login (sin bucle) cuando el refresh falla. */
   onSessionExpired?: () => void;
   /** Eventos compatibles con coordinateRefresh (sin tokens), útiles para pruebas y evidencia. */
@@ -36,14 +39,17 @@ export class SessionCoordinator implements SessionPort {
   private session: Session | null = null;
   private generation = 0;
   private inflight: Promise<string | null> | null = null;
+  private expiresAt = 0;
   private readonly baseUrl: string;
   private readonly fetchImpl: typeof fetch;
   private readonly store: SessionStore;
+  private readonly now: () => number;
 
   constructor(private readonly options: SessionCoordinatorOptions = {}) {
     this.baseUrl = options.baseUrl ?? process.env.EXPO_PUBLIC_COURSE_BACKEND_URL ?? DEFAULT_URL;
     this.fetchImpl = options.fetchImpl ?? ((input, init) => fetch(input, init));
     this.store = options.store ?? defaultStore;
+    this.now = options.now ?? Date.now;
   }
 
   getAccessToken(): string | null {
@@ -56,6 +62,11 @@ export class SessionCoordinator implements SessionPort {
 
   getSession(): Session | null {
     return this.session;
+  }
+
+  /** true cuando hay sesión y el access token ya alcanzó su `expiresIn` según el reloj. */
+  isExpired(): boolean {
+    return this.session !== null && this.now() >= this.expiresAt;
   }
 
   async login(actorId: string): Promise<Session> {
@@ -75,6 +86,7 @@ export class SessionCoordinator implements SessionPort {
     this.accessToken = body.accessToken;
     this.session = { actorId: body.actorId, role: body.role as CampusRole };
     this.generation += 1;
+    this.startExpiry(body.expiresIn);
     return this.session;
   }
 
@@ -104,18 +116,31 @@ export class SessionCoordinator implements SessionPort {
       if (!refreshToken) throw new Error('sin refresh token');
       const reply = await this.post('/v1/session/refresh', { refreshToken });
       const body = reply.body;
+      // Respuesta obsoleta: hubo logout o un login nuevo mientras volaba. Se descarta sin persistir nada.
+      if (this.isStale(generation)) return null;
       if (!reply.ok || !body || typeof body.accessToken !== 'string' || typeof body.refreshToken !== 'string') {
         throw new Error('refresh rechazado');
       }
       await this.store.save(body.refreshToken);
       this.accessToken = body.accessToken;
       this.generation = generation + 1;
+      this.startExpiry(body.expiresIn);
       this.emit({ type: 'refreshSucceeded', generation: this.generation });
       return this.accessToken;
     } catch {
-      await this.expire(generation);
+      // Un fallo de una sesión que ya no está vigente no debe cerrar la sesión nueva.
+      if (!this.isStale(generation)) await this.expire(generation);
       return null;
     }
+  }
+
+  private isStale(generation: number): boolean {
+    return this.session === null || this.generation !== generation;
+  }
+
+  private startExpiry(expiresIn: unknown): void {
+    const seconds = typeof expiresIn === 'number' && expiresIn > 0 ? expiresIn : DEFAULT_EXPIRES_IN_S;
+    this.expiresAt = this.now() + seconds * 1000;
   }
 
   private async expire(generation: number): Promise<void> {

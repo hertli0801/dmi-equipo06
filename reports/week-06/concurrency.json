@@ -1,0 +1,141 @@
+{
+  "schemaVersion": 1,
+  "week": 6,
+  "commitSha": "9cda6338a7e7d792d3ea65e837d559601adfb65a",
+  "generatedAt": "2026-10-13T04:11:59Z",
+  "refreshPolicy": "Single-flight por generación en SessionCoordinator.refresh(): la primera petición con 401 (o con token expirado por reloj) crea la promesa de refresh y las demás de la misma generación esperan esa misma promesa. Cada petición reintenta como máximo una vez; un segundo 401 se propaga. Si el refresh falla se llama clearSession() y onSessionExpired una sola vez.",
+  "staleResponses": "Una respuesta de refresh cuya generación ya no es la vigente (hubo logout o login nuevo mientras volaba) se descarta sin persistir tokens ni cerrar la sesión nueva. coordinateRefresh aplica la misma regla a eventos refreshSucceeded/refreshFailed obsoletos.",
+  "testFiles": [
+    "src/infrastructure/incidents/__tests__/CloudIncidentRepository.concurrency.test.ts",
+    "src/infrastructure/session/__tests__/SessionConcurrency.backend.test.ts",
+    "src/infrastructure/session/__tests__/SessionLifecycle.test.ts",
+    "src/course-evaluation/__tests__/coordinateRefresh.test.ts",
+    "course-tests/public/week-06.test.ts"
+  ],
+  "offline": "Ninguna prueba usa Internet: 'stub' inyecta un fetch simulado que cuenta llamadas por ruta; 'backend-local' levanta course-backend/server.mjs en 127.0.0.1 con puerto libre.",
+  "checks": [
+    {
+      "id": "cc-01-tres-401-un-refresh",
+      "status": "pass",
+      "scenarioType": "nominal",
+      "source": "stub",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.concurrency.test.ts -t \"cc-01\"",
+      "expected": "3 peticiones concurrentes (getAll, getById, getAll) reciben 401 → 1 refresh, 3 reintentos con el token nuevo.",
+      "evidence": "PASS. refresh=1; peticiones a /v1/incidents=6 (3 intentos + 3 reintentos); 3 headers 'Bearer course-valid-token-2' en reintentos. coordinateRefresh(eventos emitidos) = { status: 'authenticated', refreshCalls: 1, retriedRequestIds: ['req-1','req-2','req-3'] }.",
+      "refreshCalls": 1,
+      "concurrentRequests": 3,
+      "maxRetriesPerRequest": 1
+    },
+    {
+      "id": "cc-02-cinco-peticiones",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "source": "stub",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.concurrency.test.ts -t \"cc-02\"",
+      "expected": "Con 5 peticiones concurrentes sigue habiendo 1 refresh.",
+      "evidence": "PASS. refresh=1; peticiones=10 (5 + 5 reintentos).",
+      "refreshCalls": 1,
+      "concurrentRequests": 5,
+      "maxRetriesPerRequest": 1
+    },
+    {
+      "id": "cc-03-refresh-fallido-con-espera",
+      "status": "pass",
+      "scenarioType": "failure",
+      "source": "stub",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.concurrency.test.ts -t \"cc-03\"",
+      "expected": "3 peticiones esperando un refresh que falla: todas terminan en 401, ninguna se cuelga ni reintenta, sesión limpia.",
+      "evidence": "PASS. Las 3 rechazan con IncidentRemoteError { kind: 'http', status: 401 }; refresh=1; peticiones=3 (0 reintentos); onSessionExpired 1 vez; store === null. Una 4.ª petición posterior falla con 401 sin volver a llamar a refresh (refresh sigue en 1).",
+      "refreshCalls": 1,
+      "concurrentRequests": 3,
+      "maxRetriesPerRequest": 0
+    },
+    {
+      "id": "cc-04-reintento-limitado",
+      "status": "pass",
+      "scenarioType": "failure",
+      "source": "stub",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.concurrency.test.ts -t \"cc-04\"",
+      "expected": "Si el reintento vuelve a recibir 401 no hay segundo refresh ni bucle.",
+      "evidence": "PASS. 3 peticiones rechazadas; refresh=1; peticiones=6 (exactamente 1 intento + 1 reintento cada una).",
+      "refreshCalls": 1,
+      "concurrentRequests": 3,
+      "maxRetriesPerRequest": 1
+    },
+    {
+      "id": "cc-05-expiracion-por-reloj",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "source": "stub",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.concurrency.test.ts -t \"cc-05\"",
+      "expected": "Con el reloj en login + 60 s, 3 peticiones concurrentes renuevan antes de enviar: 1 refresh y ningún 401.",
+      "evidence": "PASS. refresh=1; peticiones=3; las 3 llevan 'Bearer course-valid-token-2'.",
+      "refreshCalls": 1,
+      "concurrentRequests": 3,
+      "maxRetriesPerRequest": 0
+    },
+    {
+      "id": "cc-06-peticion-tardia-generacion-vieja",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "source": "stub",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/incidents/__tests__/CloudIncidentRepository.concurrency.test.ts -t \"cc-06\"",
+      "expected": "Un 401 que llega con la generación anterior reutiliza el token ya renovado.",
+      "evidence": "PASS. refresh(oldGeneration, 'tarde') resuelve 'course-valid-token-2'; refresh=1.",
+      "refreshCalls": 1,
+      "concurrentRequests": 2,
+      "maxRetriesPerRequest": 1
+    },
+    {
+      "id": "be-01-concurrencia-backend-real",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "source": "backend-local",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/session/__tests__/SessionConcurrency.backend.test.ts -t \"be-01\"",
+      "expected": "Con course-backend/server.mjs y el reloj en login + 60 s, 3 getAll simultáneos usan 1 refresh real.",
+      "evidence": "PASS. Las 3 devuelven 1 incidencia; 1 llamada a /v1/session/refresh; store rotado a 'course-refresh-1'.",
+      "refreshCalls": 1,
+      "concurrentRequests": 3,
+      "maxRetriesPerRequest": 0
+    },
+    {
+      "id": "be-02-refresh-obsoleto-backend-real",
+      "status": "pass",
+      "scenarioType": "failure",
+      "source": "backend-local",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/session/__tests__/SessionConcurrency.backend.test.ts -t \"be-02\"",
+      "expected": "El refresh token ya rotado es rechazado (invalid_grant); las 3 peticiones concurrentes fallan una sola vez y la app vuelve a no autenticado.",
+      "evidence": "PASS. 2 llamadas totales a /v1/session/refresh (1 válida + 1 rechazada compartida por las 3); onSessionExpired 1 vez; store === null.",
+      "refreshCalls": 2,
+      "concurrentRequests": 3,
+      "maxRetriesPerRequest": 0
+    },
+    {
+      "id": "st-01-logout-durante-refresh",
+      "status": "pass",
+      "scenarioType": "failure",
+      "source": "stub",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/session/__tests__/SessionLifecycle.test.ts -t \"auth-05\"",
+      "expected": "Una respuesta de refresh obsoleta (llega después del logout) no vuelve a persistir tokens.",
+      "evidence": "PASS. pending resuelve null; store, access token y sesión en null. Sin la guarda de generación esta prueba fallaba con store === 'course-refresh-1'."
+    },
+    {
+      "id": "st-02-modelo-eventos-obsoletos",
+      "status": "pass",
+      "scenarioType": "failure",
+      "source": "model",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/course-evaluation/__tests__/coordinateRefresh.test.ts",
+      "expected": "coordinateRefresh: refresh fallido con espera, 401 tras fallo/logout sin refresh, refreshSucceeded/refreshFailed obsoletos ignorados, 401 tardío reintentado sin refresh.",
+      "evidence": "PASS. 7/7 (cr-01…cr-07). Ej. cr-03: tras gen 2, un refreshSucceeded gen 1 no cambia activeGeneration=2 ni persistedToken='course-token-2'; cr-06: logout + respuesta tardía → persistedToken null."
+    },
+    {
+      "id": "pub-01-prueba-publica-semana-6",
+      "status": "pass",
+      "scenarioType": "nominal",
+      "source": "model",
+      "command": "npm test -- --ci --runInBand course-tests/public/week-06.test.ts",
+      "expected": "3 request401 de generación 0 + refreshSucceeded → refreshCalls 1, retriedRequestIds ['a','b','c'].",
+      "evidence": "PASS. 2/2."
+    }
+  ]
+}

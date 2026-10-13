@@ -9,4 +9,6 @@ export interface SessionPort {
    * Varias llamadas con la misma generación comparten UN solo refresh.
    */
   refresh(requestGeneration: number, requestId: string): Promise<string | null>;
+  /** Opcional: true si el access token ya expiró por reloj; el cliente renueva antes de enviar. */
+  isExpired?(): boolean;
 }
