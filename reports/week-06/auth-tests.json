@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "week": 6,
-  "commitSha": "62a03291fd6d3de2d59ffda51fa8e03aa0167773",
+  "commitSha": "5972e3f514af7965e0aeab3e9d623c218b2e75e0",
   "generatedAt": "2026-10-13T04:11:59Z",
   "sessionOwner": "src/infrastructure/session/SessionCoordinator.ts",
   "secureStorage": "src/infrastructure/session/secureSession.ts (expo-secure-store; en pruebas se inyecta un SessionStore en memoria)",
