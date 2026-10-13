@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "week": 6,
+  "teamId": "10A-E06",
+  "members": [
+    {
+      "studentId": "3523110560",
+      "commitShas": [
+        "a6966dd1ab5c8cfc0ed79d9515af94bf58b8126d",
+        "0a27620a02d461b7d740621f0b40459f12dccbcb",
+        "cb4b22b9dfa3824466d09e4f590e322c383d41fc"
+      ],
+      "files": [
+        "src/course-evaluation/index.ts",
+        "docs/session-state-machine.mmd",
+        "evidence/week-06/engineering.json",
+        "package-lock.json"
+      ],
+      "tests": [
+        "course-tests/public/week-06.test.ts"
+      ],
+      "reviews": [],
+      "prediction": "Esperaba que agrupar los eventos request401 por generation y disparar el refresh solo en el primero evitara llamadas duplicadas, y que logout y refreshFailed limpiaran el token sin dejar reintentos colgados. Tambien sospechaba que faltaba un login real conectado a la app, porque la semana pasada App.tsx no uso el cliente cloud real (G2).",
+      "command": "npx jest week-06 --no-watchman --cacheDirectory .jest-cache --ci --runInBand && npx tsc --noEmit",
+      "observedResult": "coordinateRefresh paso los 2 casos publicos: refreshCalls=1 con 3 peticiones de la misma generation, y persistedToken=null tras logout. tsc sin errores tras tipar newGeneration explicitamente. Al inspeccionar el proyecto confirme que no existia login real (nada en src/ llamaba a /v1/session/login); lo reporte al equipo antes de repartir el trabajo. En el cierre de evidencia, make feedback fallo por una vulnerabilidad critica en shell-quote; la corregi con npm audit fix y make feedback paso completo despues.",
+      "explanation": "Implemente coordinateRefresh como reductor puro: agrupa request401 por generation, dispara un solo refresh por generation (single-flight), reintenta las peticiones encoladas cuando llega refreshSucceeded, y regresa a estado anonymous sin reintentos automaticos si llega refreshFailed o logout. Documente la maquina de estados en session-state-machine.mmd alineada 1:1 con esa logica, y redacte la justificacion tecnica en engineering.json (politica single-flight vs refresh independiente vs polling)."
+    },
+    {
+      "studentId": "3523110151",
+      "commitShas": ["8482274d0fde81e0322ae9b8dc295d7cb2e7f876"],
+      "files": [
+        "App.tsx",
+        "src/infrastructure/incidents/CloudIncidentRepository.ts",
+        "src/infrastructure/session/SessionCoordinator.ts",
+        "src/domain/session/SessionPort.ts",
+        "src/domain/incident/IncidentPermissions.ts",
+        "src/application/incidents/performIncidentAction.ts",
+        "src/ui/screens/LoginScreen.tsx",
+        "src/ui/screens/IncidentDetailScreen.tsx"
+      ],
+      "tests": [
+        "src/infrastructure/session/__tests__/SessionCoordinator.test.ts",
+        "src/infrastructure/session/__tests__/SessionRefresh.backend.test.ts",
+        "src/infrastructure/incidents/__tests__/CloudIncidentRepository.refresh.test.ts",
+        "src/application/incidents/__tests__/performIncidentAction.test.ts"
+      ],
+      "reviews": [],
+      "prediction": "Esperaba que, con el login real conectado a App.tsx, un 401 provocara un solo refresh compartido y un unico reintento de la peticion, que un refresh fallido limpiara la sesion y regresara al login sin bucle, y que un tecnico no asignado fuera rechazado por la logica y no solo por la UI.",
+      "command": "npx jest src course-tests/smoke.test.tsx course-tests/public/week-06.test.ts",
+      "observedResult": "11 suites y 61 tests aprobados; typecheck y lint sin errores. En el telefono con Expo Go: login como technician-1, la lista cargo desde el backend (incidents.list_loaded, count 1), Iniciar trabajo y Resolver dejaron la incidencia en resolved, y el coordinador pudo cerrarla.",
+      "explanation": "Conecte App.tsx a un login real (SessionCoordinator + LoginScreen) y reemplace InMemoryIncidentRepository por CloudIncidentRepository, que era la causa del G2 de la semana 5. El cliente trata el 401 con un refresh single-flight por generacion y reintenta una sola vez; si el refresh falla llama a clearSession y vuelve al login. La autorizacion por rol vive en performIncidentAction (tecnico solo sobre su incidencia asignada, coordinador abre y cierra), no solo en ocultar botones."
+    },
+    {
+      "studentId": "3523110817",
+      "commitShas": ["9cda6338a7e7d792d3ea65e837d559601adfb65a", "18dcea14ba517e7a5a8f4af5d16829c797391d4c"],
+      "files": [
+        "src/infrastructure/session/SessionCoordinator.ts",
+        "src/infrastructure/incidents/CloudIncidentRepository.ts",
+        "src/domain/session/SessionPort.ts",
+        "src/course-evaluation/index.ts",
+        "reports/week-06/auth-tests.json",
+        "reports/week-06/concurrency.json"
+      ],
+      "tests": [
+        "src/infrastructure/session/__tests__/SessionLifecycle.test.ts",
+        "src/infrastructure/incidents/__tests__/CloudIncidentRepository.concurrency.test.ts",
+        "src/infrastructure/session/__tests__/SessionConcurrency.backend.test.ts",
+        "src/course-evaluation/__tests__/coordinateRefresh.test.ts"
+      ],
+      "reviews": [],
+      "prediction": "Esperaba que 3 o mas peticiones con 401 simultaneo compartieran un solo refresh y reintentaran una sola vez, que un refresh fallido dejara a todas en 401 sin bucle y con la sesion limpia, y que al avanzar el reloj 60 s la sesion se detectara como expirada. Tambien esperaba que logout no dejara token persistido; sospechaba que un refresh que respondiera despues del logout podia volver a guardar el token.",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src course-tests/smoke.test.tsx course-tests/public/week-06.test.ts",
+      "observedResult": "Antes del cambio fallaban 14 de las 22 pruebas nuevas; entre ellas auth-05: tras logout con un refresh en vuelo, el store quedaba con course-refresh-1. Despues: 20 suites y 96 tests aprobados (src, smoke y publicas 1-6), typecheck y lint sin errores. cc-01: 3 peticiones con 401 -> 1 refresh y 6 peticiones en total (3 + 3 reintentos). cc-03: refresh fallido -> las 3 rechazan con 401, 0 reintentos y onSessionExpired una vez. be-01 contra el backend local: a los 60 s del reloj, 3 getAll simultaneos usan 1 refresh real.",
+      "explanation": "Escribi las pruebas de concurrencia, expiracion y cierre de sesion con un reloj inyectable (now) en SessionCoordinator, sin esperas reales. Las pruebas encontraron que una respuesta de refresh tardia (despues del logout o de un login nuevo) volvia a persistir el token o cerraba la sesion nueva; lo corregi descartando respuestas cuya generacion ya no es la vigente. Tambien hice que coordinateRefresh ignore eventos obsoletos y no renueve tras logout o refresh fallido. Agregue la renovacion previa al envio cuando el token ya expiro por reloj y genere los reportes auth-tests.json y concurrency.json, donde cada comando ejecuta su prueba."
+    }
+  ]
+}
