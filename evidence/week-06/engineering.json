@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "week": 6,
+  "commitSha": "cb4b22b9dfa3824466d09e4f590e322c383d41fc",
+  "decision": "La politica de renovacion es single-flight por generacion de sesion: coordinateRefresh agrupa los eventos request401 por su campo generation y solo dispara una renovacion real la primera vez que aparece una generacion sin resolver (refreshCalls += 1 una sola vez); las peticiones adicionales de la misma generacion se encolan en pendingByGeneration y se reintentan en bloque (retriedRequestIds) cuando llega refreshSucceeded. Si la renovacion falla (refreshFailed), la sesion regresa de forma segura a status: 'anonymous' con persistedToken y activeGeneration en null, sin reintentar automaticamente ni dejar peticiones colgadas.",
+  "alternatives": [
+    "Cada peticion que recibe 401 dispara su propio refresh de forma independiente, sin coordinacion entre ellas.",
+    "Renovar por un intervalo fijo (polling) antes de que expire el token, en vez de reaccionar al 401 real."
+  ],
+  "tradeoff": "Beneficio: se evita renovar la sesion varias veces en paralelo y el riesgo de que un refresh mas lento sobreescriba el token de uno mas reciente (race condition detectada en el diagnostico individual de la semana 6). Costo: agrega complejidad de estado, hay que llevar el conteo de generation y una cola de requestId pendientes en vez de simplemente reintentar cada peticion por su cuenta.",
+  "requirementIds": [
+    "AC-02",
+    "AC-03",
+    "AC-04"
+  ],
+  "verification": [
+    {
+      "command": "npx jest week-06 --no-watchman --cacheDirectory .jest-cache --ci --runInBand",
+      "result": "pass",
+      "evidence": "2 passed, 2 total: 'coalesces concurrent 401s into one refresh and retries each request once' confirma refreshCalls=1 con 3 solicitudes concurrentes de la misma generation; 'logout removes persisted session state' confirma persistedToken=null tras logout."
+    },
+    {
+      "command": "npx tsc --noEmit",
+      "result": "pass",
+      "evidence": "Sin errores de tipos despues de anotar explicitamente newGeneration: number en coordinateRefresh."
+    }
+  ]
+}
