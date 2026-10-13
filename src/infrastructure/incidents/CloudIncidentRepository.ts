@@ -2,6 +2,12 @@ import type { IncidentCategory, IncidentStatus } from '../../campusops/contracts
 import type { Incident } from '../../domain/incident/Incident';
 import type { IncidentRepository } from '../../domain/incident/IncidentRepository';
 import { IncidentRemoteError } from '../../domain/incident/IncidentRemoteError';
+import type {
+  IncidentAction,
+  IncidentActionsPort,
+  IncidentWorkSnapshot,
+} from '../../domain/incident/IncidentPermissions';
+import type { SessionPort } from '../../domain/session/SessionPort';
 import { parseRemoteResource } from '../../course-evaluation';
 
 const DEFAULT_URL = 'http://127.0.0.1:4310';
@@ -27,6 +33,8 @@ export type CloudIncidentRepositoryOptions = Readonly<{
   /** Headers adicionales, p. ej. `X-Course-Scenario` para reproducir fallas del backend didáctico. */
   extraHeaders?: Readonly<Record<string, string>>;
   sleep?: (ms: number) => Promise<void>;
+  /** Si existe, un 401 dispara UN refresh compartido y un único reintento de la petición. */
+  session?: SessionPort;
 }>;
 
 type RawResponse = Readonly<{ status: number; body: unknown }>;
@@ -38,6 +46,10 @@ function retryDelayMs(error: IncidentRemoteError, attempt: number): number {
   const seconds = retryAfter == null ? NaN : Number(retryAfter);
   if (Number.isFinite(seconds) && seconds >= 0) return Math.min(seconds * 1000, MAX_DELAY_MS);
   return Math.min(300 * 2 ** (attempt - 1), MAX_DELAY_MS);
+}
+
+function isUnauthorized(error: unknown): boolean {
+  return error instanceof IncidentRemoteError && error.failure.kind === 'http' && error.failure.status === 401;
 }
 
 function isRetryable(error: IncidentRemoteError): boolean {
@@ -81,12 +93,14 @@ function parseIncident(raw: unknown): Incident {
   return toIncident(parsed.value as Resource);
 }
 
-export class CloudIncidentRepository implements IncidentRepository {
+export class CloudIncidentRepository implements IncidentRepository, IncidentActionsPort {
   private readonly fetchImpl: typeof fetch;
   private readonly timeoutMs: number;
   private readonly maxAttempts: number;
   private readonly extraHeaders: Readonly<Record<string, string>>;
   private readonly sleep: (ms: number) => Promise<void>;
+  private readonly session: SessionPort | undefined;
+  private requestCounter = 0;
 
   constructor(
     private readonly actorId: string,
@@ -99,13 +113,14 @@ export class CloudIncidentRepository implements IncidentRepository {
     this.maxAttempts = options.maxAttempts ?? MAX_ATTEMPTS;
     this.extraHeaders = options.extraHeaders ?? {};
     this.sleep = options.sleep ?? defaultSleep;
+    this.session = options.session;
   }
 
-  private authHeaders(): Record<string, string> {
+  private authHeaders(token: string): Record<string, string> {
     return {
       ...this.extraHeaders,
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${this.accessToken}`,
+      Authorization: `Bearer ${token}`,
       'X-Course-Actor': this.actorId,
     };
   }
@@ -114,7 +129,7 @@ export class CloudIncidentRepository implements IncidentRepository {
    * Única salida HTTP del cliente. Toda falla se convierte en IncidentRemoteError;
    * nunca se propaga un AbortError, TypeError o SyntaxError sin clasificar.
    */
-  private async send(path: string, init: RequestInit = {}): Promise<RawResponse> {
+  private async sendOnce(path: string, init: RequestInit, token: string): Promise<RawResponse> {
     const controller = new AbortController();
     let timedOut = false;
     const timer = setTimeout(() => {
@@ -126,7 +141,7 @@ export class CloudIncidentRepository implements IncidentRepository {
       try {
         response = await this.fetchImpl(`${this.baseUrl}${path}`, {
           ...init,
-          headers: { ...this.authHeaders(), ...(init.headers as Record<string, string> | undefined) },
+          headers: { ...this.authHeaders(token), ...(init.headers as Record<string, string> | undefined) },
           signal: controller.signal,
         });
       } catch {
@@ -159,6 +174,25 @@ export class CloudIncidentRepository implements IncidentRepository {
     }
   }
 
+  /**
+   * Punto de entrada HTTP. Ante un 401 pide renovar la sesión (un solo refresh compartido entre
+   * peticiones concurrentes) y reintenta UNA vez con el token nuevo; si falla, propaga el 401.
+   */
+  private async send(path: string, init: RequestInit = {}): Promise<RawResponse> {
+    const session = this.session;
+    const generation = session?.getGeneration() ?? 0;
+    const token = session?.getAccessToken() ?? this.accessToken;
+    try {
+      return await this.sendOnce(path, init, token);
+    } catch (error) {
+      if (!session || !isUnauthorized(error)) throw error;
+      this.requestCounter += 1;
+      const fresh = await session.refresh(generation, `req-${this.requestCounter}`);
+      if (fresh === null) throw error;
+      return this.sendOnce(path, init, fresh); // un solo reintento: un segundo 401 se propaga, sin bucle
+    }
+  }
+
   async getAll(): Promise<readonly Incident[]> {
     const { body } = await this.send('/v1/incidents');
     const items = (body as { items?: unknown } | null)?.items;
@@ -185,6 +219,47 @@ export class CloudIncidentRepository implements IncidentRepository {
     for (let attempt = 1; ; attempt++) {
       try {
         const response = await this.send('/v1/incidents', {
+          method: 'POST',
+          headers: { 'Idempotency-Key': idempotencyKey },
+          body,
+        });
+        if (response.status === 404) throw new IncidentRemoteError({ kind: 'http', status: 404 });
+        return parseIncident((response.body as { incident?: unknown } | null)?.incident);
+      } catch (error) {
+        if (!(error instanceof IncidentRemoteError) || !isRetryable(error) || attempt >= this.maxAttempts) {
+          throw error;
+        }
+        await this.sleep(retryDelayMs(error, attempt));
+      }
+    }
+  }
+
+  async getWork(id: string): Promise<IncidentWorkSnapshot | null> {
+    const { status, body } = await this.send(`/v1/incidents/${encodeURIComponent(id)}`);
+    if (status === 404) return null;
+    const parsed = parseRemoteResource(body);
+    if (!parsed.ok) throw new IncidentRemoteError({ kind: 'contract' });
+    if (!STATUSES.includes(parsed.value.status as IncidentStatus)) throw new IncidentRemoteError({ kind: 'contract' });
+    const assigned = parsed.value.payload?.assignedTechnicianId;
+    return {
+      version: parsed.value.version,
+      status: parsed.value.status as IncidentStatus,
+      assignedTechnicianId: typeof assigned === 'string' ? assigned : null,
+    };
+  }
+
+  async performAction(
+    id: string,
+    action: IncidentAction,
+    baseVersion: number,
+    extra: Readonly<Record<string, unknown>> = {},
+  ): Promise<Incident> {
+    const idempotencyKey = `act-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+    const body = JSON.stringify({ ...extra, action, baseVersion });
+
+    for (let attempt = 1; ; attempt++) {
+      try {
+        const response = await this.send(`/v1/incidents/${encodeURIComponent(id)}/actions`, {
           method: 'POST',
           headers: { 'Idempotency-Key': idempotencyKey },
           body,
