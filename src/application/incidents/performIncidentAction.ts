@@ -5,6 +5,7 @@ import {
   type Actor,
   type IncidentAction,
   type IncidentActionsPort,
+  type PerformActionOptions
 } from '../../domain/incident/IncidentPermissions';
 import { IncidentRemoteError } from '../../domain/incident/IncidentRemoteError';
 import { noopTelemetry, type Telemetry } from '../telemetry/Telemetry';
@@ -17,6 +18,7 @@ export async function performIncidentAction(
   action: IncidentAction,
   extra: Readonly<Record<string, unknown>> = {},
   telemetry: Telemetry = noopTelemetry,
+  options?: PerformActionOptions,
 ): Promise<Incident> {
   let work;
   try {
@@ -36,7 +38,10 @@ export async function performIncidentAction(
     throw new ForbiddenActionError(action);
   }
 
-  const incident = await port.performAction(incidentId, action, work.version, extra);
+    // Sin opciones se llama igual que en la semana 6 (4 argumentos); solo la cola agrega la clave.
+  const incident = options
+    ? await port.performAction(incidentId, action, work.version, extra, options)
+    : await port.performAction(incidentId, action, work.version, extra);
   telemetry.info('incidents.action_succeeded', { incidentId, action });
   return incident;
 }

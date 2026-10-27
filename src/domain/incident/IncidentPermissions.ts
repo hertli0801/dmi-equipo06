@@ -12,6 +12,10 @@ export type IncidentWorkSnapshot = Readonly<{
   assignedTechnicianId: string | null;
 }>;
 
+
+/** Opciones de envío. `idempotencyKey` permite que un reintento (o la cola) reutilice la misma clave. */
+export type PerformActionOptions = Readonly<{ idempotencyKey?: string }>;
+
 /** Puerto aparte de IncidentRepository para no romper a quienes ya lo implementan. */
 export interface IncidentActionsPort {
   getWork(id: string): Promise<IncidentWorkSnapshot | null>;
@@ -19,7 +23,8 @@ export interface IncidentActionsPort {
     id: string,
     action: IncidentAction,
     baseVersion: number,
-    extra?: Readonly<Record<string, unknown>>,
+       extra?: Readonly<Record<string, unknown>>,
+    options?: PerformActionOptions,
   ): Promise<Incident>;
 }
 

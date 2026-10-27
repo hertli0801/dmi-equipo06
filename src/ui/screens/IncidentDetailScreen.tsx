@@ -12,6 +12,7 @@ import {
 } from '../../domain/incident/IncidentPermissions';
 import type { IncidentRepository } from '../../domain/incident/IncidentRepository';
 import type { Telemetry } from '../../application/telemetry/Telemetry';
+import type { ActionOutcome } from '../../application/sync/performOrEnqueue';
 
 export type IncidentDetailScreenProps = Readonly<{
   repository: IncidentRepository;
@@ -21,12 +22,27 @@ export type IncidentDetailScreenProps = Readonly<{
   /** Opcionales: sin ellos la pantalla es de solo lectura (como en las semanas anteriores). */
   actor?: Actor;
   actions?: IncidentActionsPort;
+  /** Semana 8: si se entrega, las acciones usan este flujo (en línea o en cola) en vez de llamar al servidor directo. */
+  onPerform?: ((action: IncidentAction, extra: Record<string, unknown>) => Promise<ActionOutcome>) | undefined;
+  /** Estado de sincronización de esta incidencia, tomado de la cola; null si no hay nada pendiente. */
+  syncStatus?: 'pending' | 'conflict' | null;
 }>;
 
-export function IncidentDetailScreen({ repository, incidentId, onBack, telemetry, actor, actions }: IncidentDetailScreenProps) {
+export function IncidentDetailScreen({
+  repository,
+  incidentId,
+  onBack,
+  telemetry,
+  actor,
+  actions,
+  onPerform,
+  syncStatus: externalSyncStatus = null,
+}: IncidentDetailScreenProps) {
   const [incident, setIncident] = useState<Incident | null | 'loading' | 'error'>('loading');
   const [message, setMessage] = useState<string | null>(null);
   const [diagnosis, setDiagnosis] = useState('');
+  const [queued, setQueued] = useState(false);
+  const syncStatus = externalSyncStatus ?? (queued ? 'pending' : null);
 
   useEffect(() => {
     let active = true;
@@ -46,6 +62,17 @@ export function IncidentDetailScreen({ repository, incidentId, onBack, telemetry
     if (!actions || !actor) return;
     setMessage(null);
     try {
+      if (onPerform) {
+        const outcome = await onPerform(action, extra);
+        if (outcome.kind === 'queued') {
+          setQueued(true);
+          setMessage('Sin conexión: la acción quedó pendiente de enviar.');
+        } else {
+          setIncident(outcome.incident);
+          setMessage('Acción realizada.');
+        }
+        return;
+      }
       // La autorización real se valida en performIncidentAction, no solo ocultando botones.
       setIncident(await performIncidentAction(actions, actor, incidentId, action, extra, telemetry));
       setMessage('Acción realizada.');
@@ -71,6 +98,8 @@ export function IncidentDetailScreen({ repository, incidentId, onBack, telemetry
           <Text style={styles.title}>{incident.categoria ?? 'Sin categoría'}</Text>
           <Text>{incident.descripcion ?? 'Sin detalle disponible.'}</Text>
           <Text style={styles.status}>Estado: {incident.estado}</Text>
+          {syncStatus === 'pending' && <Text testID="sync-status">Pendiente</Text>}
+          {syncStatus === 'conflict' && <Text testID="sync-status">Conflicto</Text>}
         </View>
       )}
       {actions && actor && typeof incident === 'object' && incident !== null && (
