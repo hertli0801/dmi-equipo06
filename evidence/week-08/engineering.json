@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "week": 8,
-  "commitSha": "c6baabbe8c1b507fc575da1ee0c62d5d456cfbf6",
+  "commitSha": "192a6a147a2076f0bcd54eaebe70c85ff5a179bc",
   "decision": "resolveSync combina por campo comparando contenido JSON contra base: si solo un lado cambia un campo se adopta ese cambio; si ambos cambian el mismo campo a valores distintos se reporta como conflicto en orden alfabetico de nombre de campo, sin mutar base/local/remote. deduplicateOperations conserva la primera operacion de cada operationId. Una operacion en conflicto permanece en la cola y solo se retira cuando el servidor confirma la operacion.",
   "alternatives": [
     "Ultimo en escribir gana: el cambio mas reciente sobrescribe el otro sin avisar, perdiendo en silencio la intencion del lado descartado.",
