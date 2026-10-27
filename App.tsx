@@ -5,6 +5,8 @@ import { StatusBar } from 'expo-status-bar';
 import { getBackendHealth } from './src/api/courseBackend';
 import { createTelemetry } from './src/application/telemetry/Telemetry';
 import { CloudIncidentRepository } from './src/infrastructure/incidents/CloudIncidentRepository';
+import { openDeviceOfflineStore } from './src/infrastructure/persistence/openDeviceOfflineStore';
+import type { OfflineStore } from './src/infrastructure/persistence/openOfflineStore';
 import { SessionCoordinator, type Session } from './src/infrastructure/session/SessionCoordinator';
 import { ConsoleTelemetrySink } from './src/infrastructure/telemetry/ConsoleTelemetrySink';
 import { IncidentDetailScreen } from './src/ui/screens/IncidentDetailScreen';
@@ -21,6 +23,8 @@ export default function App() {
   const [route, setRoute] = useState<Route>({ name: 'list' });
   const [session, setSession] = useState<Session | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [offlineStore, setOfflineStore] = useState<OfflineStore | null>(null);
+  const [offlineStatus, setOfflineStatus] = useState<'opening' | 'ready' | 'unavailable'>('opening');
 
   // Composition root: único lugar que conoce las implementaciones de Infrastructure.
   const coordinator = useMemo(
@@ -43,6 +47,29 @@ export default function App() {
         : null,
     [session, coordinator],
   );
+
+  // La base local se migra al abrir; si la migración falla queda en su versión anterior (rollback).
+  useEffect(() => {
+    let active = true;
+    let opened: OfflineStore | null = null;
+    openDeviceOfflineStore()
+      .then(async (store) => {
+        opened = store;
+        const pending = await store.queue.list();
+        telemetry.info('offline_store.ready', { schemaVersion: store.schemaVersion, pendingOperations: pending.length });
+        if (!active) return;
+        setOfflineStore(store);
+        setOfflineStatus('ready');
+      })
+      .catch((error: unknown) => {
+        telemetry.error('offline_store.open_failed', error);
+        if (active) setOfflineStatus('unavailable');
+      });
+    return () => {
+      active = false;
+      void opened?.close();
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -77,6 +104,10 @@ export default function App() {
         <Text style={styles.title}>CampusOps</Text>
         <Text>Incidencias del campus · entorno académico ficticio</Text>
         <Text testID="backend-status">Backend: {status}</Text>
+        <Text testID="offline-store-status">
+          Datos locales: {offlineStatus}
+          {offlineStore ? ` (esquema v${offlineStore.schemaVersion})` : ''}
+        </Text>
         {session ? (
           <Pressable testID="logout-button" onPress={() => void handleLogout()}>
             <Text style={styles.link}>
