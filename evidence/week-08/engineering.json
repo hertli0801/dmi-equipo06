@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "week": 8,
+  "commitSha": "c6baabbe8c1b507fc575da1ee0c62d5d456cfbf6",
+  "decision": "resolveSync combina por campo comparando contenido JSON contra base: si solo un lado cambia un campo se adopta ese cambio; si ambos cambian el mismo campo a valores distintos se reporta como conflicto en orden alfabetico de nombre de campo, sin mutar base/local/remote. deduplicateOperations conserva la primera operacion de cada operationId. Una operacion en conflicto permanece en la cola y solo se retira cuando el servidor confirma la operacion.",
+  "alternatives": [
+    "Ultimo en escribir gana: el cambio mas reciente sobrescribe el otro sin avisar, perdiendo en silencio la intencion del lado descartado.",
+    "El servidor siempre gana: se descarta cualquier cambio local en conflicto, perdiendo el trabajo del tecnico sin conexion."
+  ],
+  "tradeoff": "Beneficio: cero perdida silenciosa de cambios, el conflicto queda visible y el usuario decide; ademas la combinacion por campo permite seguir trabajando con cambios independientes sin bloquear toda la sincronizacion. Costo: mas complejidad de estado (status pending/conflict por operacion) y se necesita una accion explicita del usuario para resolver cada conflicto en vez de aplicar una regla automatica.",
+  "requirementIds": ["AC-02", "AC-03", "AC-04"],
+  "verification": [
+    {
+      "command": "npx jest course-tests/public/week-08.test.ts --no-watchman --cacheDirectory .jest-cache --ci --runInBand",
+      "result": "pass",
+      "evidence": "3 passed, 3 total: deteccion de conflicto en work sin mutar registros, combinacion de campos independientes + conflicto en el mismo campo, deduplicacion por operationId."
+    },
+    {
+      "command": "npx tsc --noEmit",
+      "result": "pass",
+      "evidence": "Sin errores de tipos en src/course-evaluation/index.ts."
+    }
+  ]
+}

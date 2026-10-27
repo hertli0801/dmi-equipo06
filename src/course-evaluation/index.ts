@@ -130,17 +130,60 @@ export function coordinateRefresh(events: readonly AuthEvent[]): Readonly<{
 }
 
 export function resolveSync(
-  _base: SyncRecord,
-  _local: SyncRecord,
-  _remote: SyncRecord,
+  base: SyncRecord,
+  local: SyncRecord,
+  remote: SyncRecord,
 ): Readonly<{ kind: 'merged'; fields: JsonObject } | { kind: 'conflict'; fields: readonly string[] }> {
-  return pending('resolveSync');
+  const fieldNames = new Set<string>([
+    ...Object.keys(base.fields),
+    ...Object.keys(local.fields),
+    ...Object.keys(remote.fields),
+  ]);
+
+  const merged: Record<string, unknown> = {};
+  const conflicts: string[] = [];
+
+  for (const field of fieldNames) {
+    const baseJson = JSON.stringify(base.fields[field]);
+    const localJson = JSON.stringify(local.fields[field]);
+    const remoteJson = JSON.stringify(remote.fields[field]);
+
+    const localChanged = localJson !== baseJson;
+    const remoteChanged = remoteJson !== baseJson;
+
+    if (localChanged && remoteChanged) {
+      if (localJson === remoteJson) {
+        merged[field] = local.fields[field];
+      } else {
+        conflicts.push(field);
+      }
+    } else if (localChanged) {
+      merged[field] = local.fields[field];
+    } else if (remoteChanged) {
+      merged[field] = remote.fields[field];
+    } else {
+      merged[field] = base.fields[field];
+    }
+  }
+
+  if (conflicts.length > 0) {
+    return { kind: 'conflict', fields: conflicts.sort() };
+  }
+
+  return { kind: 'merged', fields: merged as JsonObject };
 }
 
 export function deduplicateOperations<T extends Readonly<{ operationId: string }>>(
-  _operations: readonly T[],
+  operations: readonly T[],
 ): readonly T[] {
-  return pending('deduplicateOperations');
+  const seen = new Set<string>();
+  const result: T[] = [];
+  for (const operation of operations) {
+    if (seen.has(operation.operationId)) continue;
+    seen.add(operation.operationId);
+    result.push(operation);
+  }
+  return result;
 }
 
 export function planRetry(_input: Readonly<{
