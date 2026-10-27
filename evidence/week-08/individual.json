@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "week": 8,
+  "teamId": "10A-E06",
+  "members": [
+    {
+      "studentId": "3523110560",
+      "commitShas": ["c6baabbe8c1b507fc575da1ee0c62d5d456cfbf6"],
+      "files": [
+        "src/course-evaluation/index.ts",
+        "docs/sync-policy.md",
+        "evidence/week-08/engineering.json"
+      ],
+      "tests": ["course-tests/public/week-08.test.ts"],
+      "reviews": [],
+      "prediction": "Esperaba que resolveSync detectara conflicto sobre el campo work cuando el cambio local (status, por un inicio de atencion sin conexion) y el cambio remoto (assignedTechnicianId, por una reasignacion) fueran distintos, sin mutar los registros base/local/remote, y que combinara sin conflicto los campos que solo cambiaron de un lado.",
+      "command": "npx tsc --noEmit && npx jest course-tests/public/week-08.test.ts --no-watchman --cacheDirectory .jest-cache --ci --runInBand",
+      "observedResult": "Typecheck sin errores. 3 pruebas aprobadas: deteccion de conflicto en work sin mutar los registros, combinacion de campos independientes mas conflicto en el mismo campo, y deduplicacion por operationId conservando la primera operacion.",
+      "explanation": "Implemente resolveSync comparando cada campo por contenido JSON contra la version base: si solo un lado cambio se adopta ese valor; si ambos cambiaron igual no es conflicto; si cambiaron distinto se reporta el nombre del campo en orden alfabetico (en CampusOps, work agrupa assignedTechnicianId y status). deduplicateOperations conserva la primera aparicion de cada operationId sin mutar las entradas. Verifique con grep y con tools/check-architecture-boundaries.mjs que syncPendingOperations.ts de Oscar ya importa resolveSync desde course-evaluation, sin logica duplicada, y documente la politica en docs/sync-policy.md."
+    },
+    {
+      "studentId": "3523110151",
+      "commitShas": ["ab4219f19e72fbe590461ed11fb295cd3598fd17"],
+      "files": [
+        "App.tsx",
+        "src/application/incidents/performIncidentAction.ts",
+        "src/application/sync/performOrEnqueue.ts",
+        "src/application/sync/syncPendingOperations.ts",
+        "src/domain/sync/PendingOperation.ts",
+        "src/domain/sync/LocalIncidentCache.ts",
+        "src/infrastructure/persistence/openDeviceOfflineStore.ts",
+        "src/infrastructure/persistence/openOfflineStore.ts"
+      ],
+      "tests": ["src/application/sync/__test__/syncPendingOperations.test.ts"],
+      "reviews": [],
+      "prediction": "Esperaba que la implementacion de la semana 08 permitiera guardar operaciones pendientes cuando no hubiera conexion y sincronizarlas posteriormente, manteniendo el funcionamiento de la aplicacion sin errores de compilacion.",
+      "command": "npm run typecheck && npx jest --ci --runInBand src/application/sync",
+      "observedResult": "Typecheck finalizado sin errores. Las pruebas de sincronizacion pasaron correctamente: 2 suites aprobadas y 19 pruebas exitosas, sin fallos.",
+      "explanation": "Se integraron los cambios de la semana 08 para el manejo de operaciones pendientes, la persistencia local con SQLite y la sincronizacion de operaciones. Tambien se actualizo App.tsx para conectar el almacenamiento local y el proceso de sincronizacion con la aplicacion. La verificacion de tipos y las pruebas automatizadas de sincronizacion finalizaron correctamente."
+    },
+    {
+      "studentId": "3523110817",
+      "commitShas": ["6dc534cf1b9a2ba83b87d007abe17405eac9bbb5"],
+      "files": [
+        "src/domain/sync/PendingOperation.ts",
+        "src/domain/sync/LocalIncidentCache.ts",
+        "src/infrastructure/persistence/schema.ts",
+        "src/infrastructure/persistence/SqlitePendingOperationQueue.ts",
+        "src/infrastructure/persistence/SqliteIncidentCache.ts",
+        "src/infrastructure/persistence/ExpoSqliteDatabase.ts",
+        "src/infrastructure/persistence/openOfflineStore.ts",
+        "src/application/offline/recordOfflineIncidentWork.ts",
+        "App.tsx",
+        "docs/data-model.md"
+      ],
+      "tests": [
+        "src/infrastructure/persistence/__tests__/PendingOperationQueue.restart.test.ts",
+        "src/infrastructure/persistence/__tests__/SchemaMigration.test.ts"
+      ],
+      "reviews": [],
+      "prediction": "Esperaba que la cola guardada en SQLite devolviera, tras cerrar y reabrir el archivo, el mismo operationId, autor, version base, nota y referencia de foto, y que la foto siguiera como pending_upload. Esperaba que una falla inyectada en cualquiera de los 7 pasos de la migracion v1->v2 dejara la base exactamente en v1 porque SQLite revierte DDL y PRAGMA user_version dentro de la transaccion. Sospechaba que la FK de pending_photos podia quedar apuntando a pending_operations_v2 despues del rename y romper el borrado en cascada.",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/persistence && WEEK08_STATE_LOG=reports/week-08/migration-states.json npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/persistence -t \"records the state\" && make feedback && make verify-week-08",
+      "observedResult": "2 suites y 17 pruebas de persistencia aprobadas (5 de reinicio/cola y 12 de migracion). Estados registrados con falla en copy_photos: antes user_version=1, tablas incidents+outbox (2 incidencias, 2 operaciones); despues de la falla (archivo reabierto) identico a antes y sin tablas *_v2; despues de recuperar user_version=2, tablas incidents+pending_operations+pending_photos con 2 incidencias, 2 operaciones en el mismo orden y 1 foto pending_upload. Como control cambie a mano ROLLBACK por COMMIT y fallaron 8 de 17 pruebas. La FK se renombro bien: removeConfirmed borra la foto en cascada tras migrar. src+smoke+publicas 1-6: 22 suites y 113 pruebas aprobadas. make feedback (audit y bundle Android con expo-sqlite) y make verify-week-08 pasaron.",
+      "explanation": "Elegi expo-sqlite en lugar de clave-valor con dos fases porque una transaccion de SQLite revierte tablas, filas y user_version juntas, sin rollback hecho a mano. Defini el puerto PendingOperationQueue en domain y lo implemente en infrastructure sobre un puerto SqlDatabase: la app usa expo-sqlite y las pruebas usan node:sqlite sobre un archivo real, que cierro y reabro para simular el reinicio. La migracion corre en una sola transaccion con un punto beforeStep para inyectar fallas, y el siguiente arranque reintenta desde el v1 intacto. Las fotos tienen un CHECK que solo permite pending_upload. recordOfflineIncidentWork autoriza con canPerform de la semana 6 antes de encolar, y repetir un operationId con otro contenido se rechaza. Se apoyo en asistencia de IA (Claude Code) para redactar codigo y pruebas; lo verifique corriendo cada prueba y con el control de ROLLBACK->COMMIT."
+    }
+  ]
+}

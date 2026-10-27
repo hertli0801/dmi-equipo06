@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "week": 8,
+  "commitSha": "c6baabbe8c1b507fc575da1ee0c62d5d456cfbf6",
+  "generatedAt": "2026-10-27T04:54:00.000Z",
+  "checks": [
+    {
+      "id": "offline-restart-preserves-queue",
+      "status": "pass",
+      "scenarioType": "nominal",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/persistence/__tests__/PendingOperationQueue.restart.test.ts",
+      "evidence": "5 pruebas aprobadas: un inicio sin conexion con nota y foto pendiente sobrevive el reinicio con el mismo operationId y contenido; FIFO, attempts y estado de conflicto se conservan entre reinicios; solo una operacion confirmada sale de la cola."
+    },
+    {
+      "id": "migration-v1-to-v2-valid",
+      "status": "pass",
+      "scenarioType": "nominal",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/persistence/__tests__/SchemaMigration.test.ts",
+      "evidence": "migrates v1 to v2 keeping incidents and pending operations in order: 2 incidencias y 2 operaciones conservadas, user_version pasa de 1 a 2."
+    },
+    {
+      "id": "migration-failure-rolls-back-per-step",
+      "status": "pass",
+      "scenarioType": "failure",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/persistence/__tests__/SchemaMigration.test.ts -t \"a failure injected before\"",
+      "evidence": "Prueba parametrizada inyecta la falla antes de cada uno de los 7 pasos (create_v2_tables..set_version); en los 7 casos el estado despues de la falla es identico al estado antes (userVersion, tablas y filas), sin tablas *_v2."
+    },
+    {
+      "id": "migration-failure-recovery-states",
+      "status": "pass",
+      "scenarioType": "failure",
+      "command": "WEEK08_STATE_LOG=reports/week-08/migration-states.json npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/infrastructure/persistence -t \"records the state\"",
+      "evidence": "Falla inyectada en copy_photos. Antes: userVersion=1, tablas incidents+outbox (2 incidencias, 2 operaciones). Despues de la falla (archivo reabierto): identico a antes, sin tablas *_v2. Despues de recuperar (segundo arranque sin falla): userVersion=2, tablas incidents+pending_operations+pending_photos (2 incidencias, 2 operaciones en el mismo orden, 1 foto pending_upload)."
+    },
+    {
+      "id": "concurrent-reassignment-conflict",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/application/sync/__test__/SyncScenarios.backend.test.ts",
+      "evidence": "Tecnico inicia atencion sin conexion sobre campus-inc-001 (version 1, technician-1); coordinator-1 reasigna a technician-2 en el servidor real. Al reconectar y enviar con baseVersion 1, el backend devuelve 403 (log: BACKEND DEVUELVE EN LA REASIGNACION: {kind:'http',status:403}). resolveSync detecta conflicto sobre el campo work; la operacion local no se pierde y la asignacion remota no se sobrescribe."
+    },
+    {
+      "id": "sync-queue-flush-end-to-end",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "command": "npx jest --no-watchman --cacheDirectory .jest-cache --ci --runInBand src/application/sync",
+      "evidence": "2 suites y 19 pruebas aprobadas (syncPendingOperations.test.ts y SyncScenarios.backend.test.ts): confirma retiro de cola solo ante confirmacion del servidor, estado conflict ante 403, y estado pending ante error/timeout."
+    },
+    {
+      "id": "field-combination-independent-changes",
+      "status": "pass",
+      "scenarioType": "nominal",
+      "command": "npx jest course-tests/public/week-08.test.ts --no-watchman --cacheDirectory .jest-cache --ci --runInBand",
+      "evidence": "merges independent field changes and reports same-field conflict: title solo cambiado en local y priority solo en remote se combinan sin conflicto."
+    },
+    {
+      "id": "field-conflict-same-field-different-values",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "command": "npx jest course-tests/public/week-08.test.ts --no-watchman --cacheDirectory .jest-cache --ci --runInBand",
+      "evidence": "Mismo archivo: title cambiado a valores distintos en local y remote se reporta como conflicto ['title']; work (assignedTechnicianId+status) genera conflicto al iniciar localmente y reasignar remotamente, sin mutar base/local/remote."
+    },
+    {
+      "id": "deduplicate-repeated-operation-id",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "command": "npx jest course-tests/public/week-08.test.ts --no-watchman --cacheDirectory .jest-cache --ci --runInBand",
+      "evidence": "deduplicates a replayed operation by stable identity: operationId 'op-1' repetido conserva solo la primera aparicion; 'op-2' se conserva; no se mutan las entradas originales."
+    }
+  ]
+}
