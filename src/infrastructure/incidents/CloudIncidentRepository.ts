@@ -6,6 +6,7 @@ import type {
   IncidentAction,
   IncidentActionsPort,
   IncidentWorkSnapshot,
+    PerformActionOptions,
 } from '../../domain/incident/IncidentPermissions';
 import type { SessionPort } from '../../domain/session/SessionPort';
 import { parseRemoteResource } from '../../course-evaluation';
@@ -259,9 +260,12 @@ export class CloudIncidentRepository implements IncidentRepository, IncidentActi
     id: string,
     action: IncidentAction,
     baseVersion: number,
-    extra: Readonly<Record<string, unknown>> = {},
+        extra: Readonly<Record<string, unknown>> = {},
+    options: PerformActionOptions = {},
   ): Promise<Incident> {
-    const idempotencyKey = `act-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+    // Con la cola, la clave es el operationId: estable al reintentar y al reiniciar la app.
+    const idempotencyKey =
+      options.idempotencyKey ?? `act-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
     const body = JSON.stringify({ ...extra, action, baseVersion });
 
     for (let attempt = 1; ; attempt++) {
