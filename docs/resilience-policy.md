@@ -78,7 +78,7 @@ arreglo, `label` vacío — devuelve `{ source: 'manual', label: manualLabel }` 
 
 Flujo en la app: `findLocation(query)` de `createLocationLookup` se inyecta en la pantalla de crear incidencia (`findLocation` /
 `selectLocation`). El campo "edificio, zona o referencia" está siempre disponible; si el proveedor falla o tarda, la UI no se bloquea
-y muestra "Ubicación del servicio no disponible, escríbela manualmente". _(La pantalla y su prueba con proveedor fallando: sección a cargo de C.)_
+y muestra "Ubicación del servicio no disponible, escríbela manualmente". **Pantalla (C).** `src/ui/screens/CreateIncidentScreen.tsx` recibe `findLocation` y `selectLocation` por props (en `App.tsx` se inyectan `createLocationLookup` y `selectIncidentLocation`). Al crear, consulta al proveedor con un tope de 3 s; cualquier fallo, rechazo o demora se trata como "no disponible" y se sigue con la etiqueta manual. Si no hay ubicación manual ni del proveedor, no se crea y se pide escribirla. Pruebas en `src/ui/screens/__tests__/CreateIncidentScreen.test.tsx`: proveedor que falla, proveedor lento, sin ubicación y error del repositorio (mensaje genérico, sin token).
 
 Pruebas: `src/domain/location/__tests__/selectIncidentLocation.test.ts` (18 casos inválidos + bordes) y
 `src/infrastructure/geocoding/__tests__/HttpGeocodingAdapter.backend.test.ts` contra el doble real: `success`, `incomplete`,
@@ -112,7 +112,40 @@ La decisión vive en `planRetry` (`src/course-evaluation/index.ts`) y `retryWith
 
 ## 5. Respuesta perdida e idempotencia
 
-_Pendiente (C)._
+### Escenario
+El cliente envía una acción de escritura (por ejemplo `resolve`) y el servidor **sí la guarda**, pero la respuesta no llega a tiempo y el cliente aborta por su propio timeout. El cliente no sabe si el cambio se aplicó. El backend didáctico simula esto con `X-Course-Scenario: timeout_after_commit`.
+
+### Regla
+- Cada operación lleva una clave estable: `idempotencyKey = operationId`. Se reutiliza tal cual en cada reintento y nunca se genera una clave nueva por intento.
+- Sin confirmación del servidor, la operación **permanece en la cola** de la semana 8. Solo sale de la cola cuando se confirma.
+- Reintentar con la **misma clave y el mismo contenido** devuelve el resultado ya guardado (`duplicate: true`) y no agrega eventos.
+- Reutilizar la misma clave con **contenido distinto** devuelve `409` (`idempotency_key_reused`). El cliente no lo trata como éxito.
+
+### Evidencia manual (curl)
+Ejecutada el 2 nov 2026, backend recién iniciado, datos ficticios, incidencia `campus-inc-001` (empieza `assigned`, versión 1). Los encabezados `Authorization` y `X-Course-Actor` se omiten de este reporte.
+
+| # | Comando (resumen) | Resultado observado |
+|---|---|---|
+| 1 | `POST /actions` `start`, clave `curl-start-0001`, `baseVersion 1` | versión 2, `in_progress`, `duplicate:false` |
+| 2 | `POST /actions` `resolve`, clave `curl-resolve-0001`, `X-Course-Scenario: timeout_after_commit`, `curl -m 0.3` | sin respuesta; `curl` termina con código 28 (timeout) |
+| 3 | `GET /v1/incidents/campus-inc-001` | versión 3, `resolved`; el historial tiene **un solo** evento `curl-resolve-0001` |
+| 4 | Mismo `resolve`, misma clave y mismo contenido | `duplicate:true`, versión 3, sin evento nuevo |
+| 5 | Misma clave, `diagnosis` distinto | `409 Conflict`, `{"code":"idempotency_key_reused"}` |
+
+Conclusión: aunque el cliente nunca recibió la respuesta del paso 2, el cambio quedó aplicado una sola vez, y el reintento del paso 4 no lo duplicó.
+
+### Evidencia automatizada
+`src/application/sync/__test__/lostResponse.test.ts` (backend real y cola SQLite real):
+1. Intento 1 con `timeout_after_commit` y timeout de 300 ms: la operación queda `pending` y **sigue en la cola**.
+2. Intento 2 con la misma `operationId` y el mismo contenido: se confirma y **sale de la cola**. El servidor queda en versión 3 con un solo evento para esa operación, `evidence` vacío y `notes` vacío (sin duplicados).
+3. Misma clave con contenido distinto: `409`, la versión y el historial no cambian.
+
+Las pruebas de la semana 8 (cola, migración, sincronización) siguen pasando.
+
+### Límites
+- El backend didáctico no tiene un concepto de notificaciones; solo guarda `history`, `evidence` y `notes`. "Sin duplicados" se verificó sobre esos tres campos.
+- La prueba automatizada usa un transporte con timeout corto, no una red real con pérdida de paquetes.
+- La integración con `retryWithPolicy` / `sendWithRetries` no forma parte de este PR; la semana 8 envía con una sola clave estable por operación.
 
 ## 6. Qué se registra y qué se oculta
 
