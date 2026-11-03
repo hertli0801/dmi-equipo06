@@ -11,6 +11,7 @@ import { openDeviceOfflineStore } from './src/infrastructure/persistence/openDev
 import type { OfflineStore } from './src/infrastructure/persistence/openOfflineStore';
 import { SessionCoordinator, type Session } from './src/infrastructure/session/SessionCoordinator';
 import { ConsoleTelemetrySink } from './src/infrastructure/telemetry/ConsoleTelemetrySink';
+import { CreateIncidentScreen } from './src/ui/screens/CreateIncidentScreen';
 import { IncidentDetailScreen } from './src/ui/screens/IncidentDetailScreen';
 import { IncidentListScreen } from './src/ui/screens/IncidentListScreen';
 import { LoginScreen } from './src/ui/screens/LoginScreen';
@@ -18,7 +19,10 @@ import { LoginScreen } from './src/ui/screens/LoginScreen';
 // Todo log pasa por redactForTelemetry antes de llegar a la consola.
 const telemetry = createTelemetry(new ConsoleTelemetrySink());
 
-type Route = Readonly<{ name: 'list' }> | Readonly<{ name: 'detail'; incidentId: string }>;
+type Route =
+  | Readonly<{ name: 'list' }>
+  | Readonly<{ name: 'create' }>
+  | Readonly<{ name: 'detail'; incidentId: string }>;
 
 /** Una incidencia con algún conflicto se muestra como "Conflicto"; si no, como "Pendiente". */
 function toSyncStates(
@@ -184,12 +188,24 @@ export default function App() {
       </View>
       {!session || !repository ? (
         <LoginScreen onLogin={handleLogin} notice={notice} />
-      ) : route.name === 'list' ? (
-        <IncidentListScreen
+      ) : route.name === 'create' ? (
+        <CreateIncidentScreen
           repository={repository}
           telemetry={telemetry}
-          onSelectIncident={(incidentId) => setRoute({ name: 'detail', incidentId })}
+          onCreated={(incident) => setRoute({ name: 'detail', incidentId: incident.id })}
+          onCancel={() => setRoute({ name: 'list' })}
         />
+      ) : route.name === 'list' ? (
+        <>
+          <Pressable testID="new-incident-button" onPress={() => setRoute({ name: 'create' })}>
+            <Text style={styles.link}>Nueva incidencia</Text>
+          </Pressable>
+          <IncidentListScreen
+            repository={repository}
+            telemetry={telemetry}
+            onSelectIncident={(incidentId) => setRoute({ name: 'detail', incidentId })}
+          />
+        </>
       ) : (
         <IncidentDetailScreen
           key={route.incidentId}
