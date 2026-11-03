@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "week": 9,
+  "commitSha": "38e3adc6f01cd57c7a9b708c351f6a6f25d691bd",
+  "decision": "Reintentar solo fallos transitorios (timeout, sin red, 408, 429 y 5xx), con un máximo de 4 solicitudes (desde el intento 4 ya no se reintenta), espera progresiva 500/1000/2000 ms con tope de 30 s y respetando Retry-After cuando es válido; un POST solo se reintenta con una clave de idempotencia estable y el mismo contenido. Usar la ubicación manual cuando el proveedor devuelve dato nulo, incompleto o inválido (reintentar no ayuda) o cuando no da una respuesta útil tras agotar intentos o con un Retry-After mayor al tope. Informar el fallo cuando el error es 4xx no reintentable (403, 409, 422) o cuando una operación con efecto agotó intentos: queda pendiente en la cola y no se simula éxito.",
+  "alternatives": [
+    "Reintento infinito: satura al servicio y puede duplicar efectos.",
+    "No reintentar nunca: mala experiencia ante fallos pasajeros como 429 o 500.",
+    "Reintentar POST sin clave de idempotencia: un timeout no prueba que el servidor no guardó el cambio, así que duplicaría eventos.",
+    "Demora fija entre intentos: golpea al servicio sin dar tiempo de recuperación y no respeta Retry-After."
+  ],
+  "tradeoff": "Beneficio: más robustez ante fallos transitorios y cero duplicados gracias a la clave estable, con la app siempre utilizable por la ubicación manual. Costo: más complejidad de código y pruebas, esperas de hasta 3.5 s antes de rendirse y operaciones que quedan pendientes en la cola cuando se agotan los intentos.",
+  "requirementIds": [
+    "AC-01",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-05"
+  ],
+  "verification": [
+    {
+      "command": "npx jest --testMatch '**/scripts/week-09-collect.ts' --no-watchman --ci --runInBand",
+      "result": "Los 5 checks de retry-metrics.json en pass: Retry-After de 1 s respetado, máximo de 4 solicitudes con 500 persistente, POST sin clave sin reintento, respuesta perdida con la misma clave y un solo evento, y misma clave con contenido distinto con 409 sin reintento.",
+      "evidence": "reports/week-09/retry-metrics.json"
+    },
+    {
+      "command": "npx jest --testMatch '**/scripts/week-09-fault-injection.ts' --no-watchman --ci --runInBand",
+      "result": "10 checks en pass: 8 de geocodificación (éxito, incompleto, coordenadas inválidas, malformado, 429, 500, timeout y desconexión) y 2 de respuesta perdida tras guardar.",
+      "evidence": "reports/week-09/fault-injection.json"
+    },
+    {
+      "command": "make verify-week-09",
+      "result": "status pass, incluidos typecheck, lint y backend:self-test.",
+      "evidence": "Salida de make verify-week-09 sobre el SHA 38e3adc6f01cd57c7a9b708c351f6a6f25d691bd."
+    },
+    {
+      "command": "npx jest course-tests/public/week-09.test.ts --no-watchman --ci --runInBand",
+      "result": "Pasan los 4 tests públicos de la semana 9: ubicación con alternativa manual, respuesta perdida con clave estable, reintentos acotados con Retry-After y POST sin clave sin reintento.",
+      "evidence": "Salida de jest sobre el SHA 38e3adc6f01cd57c7a9b708c351f6a6f25d691bd."
+    }
+  ]
+}

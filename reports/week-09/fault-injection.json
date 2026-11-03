@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "week": 9,
+  "commitSha": "38e3adc6f01cd57c7a9b708c351f6a6f25d691bd",
+  "generatedAt": "2026-11-03T04:23:50.829Z",
+  "checks": [
+    {
+      "id": "geocoding-success",
+      "status": "pass",
+      "scenarioType": "nominal",
+      "command": "npx jest --testMatch '**/scripts/week-09-fault-injection.ts' --no-watchman --ci --runInBand",
+      "evidence": "X-Course-Scenario=success (coordenadas 0,0 validas): ubicacion del proveedor, una sola solicitud. Observado: outcome=valid; ubicacion=provider; coordenadas incluidas; etiqueta utilizable=si; solicitudes=1 (limite 4); duracion=15 ms"
+    },
+    {
+      "id": "geocoding-incomplete",
+      "status": "pass",
+      "scenarioType": "failure",
+      "command": "npx jest --testMatch '**/scripts/week-09-fault-injection.ts' --no-watchman --ci --runInBand",
+      "evidence": "X-Course-Scenario=incomplete (solo label): se rechaza, se usa la etiqueta manual sin inventar coordenadas y no se reintenta. Observado: outcome=invalid_or_incomplete; ubicacion=manual; coordenadas no incluidas; etiqueta utilizable=si; solicitudes=1 (limite 4); duracion=3 ms"
+    },
+    {
+      "id": "geocoding-invalid-coordinates",
+      "status": "pass",
+      "scenarioType": "failure",
+      "command": "npx jest --testMatch '**/scripts/week-09-fault-injection.ts' --no-watchman --ci --runInBand",
+      "evidence": "X-Course-Scenario=invalid_coordinates: coordenadas fuera de rango o nulas se rechazan; ubicacion manual. Observado: outcome=invalid_or_incomplete; ubicacion=manual; coordenadas no incluidas; etiqueta utilizable=si; solicitudes=1 (limite 4); duracion=3 ms"
+    },
+    {
+      "id": "geocoding-malformed",
+      "status": "pass",
+      "scenarioType": "failure",
+      "command": "npx jest --testMatch '**/scripts/week-09-fault-injection.ts' --no-watchman --ci --runInBand",
+      "evidence": "X-Course-Scenario=malformed (JSON roto): JSON malformado no es transitorio: no se reintenta y se usa la ubicacion manual. Observado: outcome=invalid_or_incomplete; ubicacion=manual; coordenadas no incluidas; etiqueta utilizable=si; solicitudes=1 (limite 4); duracion=1 ms"
+    },
+    {
+      "id": "geocoding-rate-limited",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "command": "npx jest --testMatch '**/scripts/week-09-fault-injection.ts' --no-watchman --ci --runInBand",
+      "evidence": "X-Course-Scenario=rate_limited (429 con Retry-After): se respeta Retry-After, se agotan los intentos acotados y se usa la ubicacion manual. Observado: outcome=gave_up; ubicacion=manual; coordenadas no incluidas; etiqueta utilizable=si; solicitudes=4 (limite 4); duracion=3011 ms"
+    },
+    {
+      "id": "geocoding-server-error",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "command": "npx jest --testMatch '**/scripts/week-09-fault-injection.ts' --no-watchman --ci --runInBand",
+      "evidence": "X-Course-Scenario=server_error (500 persistente): se llega exactamente al limite de solicitudes y se usa la ubicacion manual. Observado: outcome=gave_up; ubicacion=manual; coordenadas no incluidas; etiqueta utilizable=si; solicitudes=4 (limite 4); duracion=3514 ms"
+    },
+    {
+      "id": "geocoding-timeout",
+      "status": "pass",
+      "scenarioType": "failure",
+      "command": "npx jest --testMatch '**/scripts/week-09-fault-injection.ts' --no-watchman --ci --runInBand",
+      "evidence": "X-Course-Scenario=slow con timeout propio de 300 ms: el timeout propio aborta, se reintenta de forma acotada y no se bloquea la UI. Observado: outcome=gave_up; ubicacion=manual; coordenadas no incluidas; etiqueta utilizable=si; solicitudes=4 (limite 4); duracion=4707 ms"
+    },
+    {
+      "id": "geocoding-disconnected",
+      "status": "pass",
+      "scenarioType": "failure",
+      "command": "npx jest --testMatch '**/scripts/week-09-fault-injection.ts' --no-watchman --ci --runInBand",
+      "evidence": "servidor inalcanzable (puerto cerrado): la desconexion no lanza excepcion; se usa la ubicacion manual. Observado: outcome=gave_up; ubicacion=manual; coordenadas no incluidas; etiqueta utilizable=si; solicitudes=4 (limite 4); duracion=3510 ms"
+    },
+    {
+      "id": "lost-response-resolve",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "command": "npx jest --testMatch '**/scripts/week-09-fault-injection.ts' --no-watchman --ci --runInBand",
+      "evidence": "POST resolve con X-Course-Scenario=timeout_after_commit y timeout de cliente de 300 ms: intento 1=timeout (el servidor ya guardo); intento 2 con la MISMA clave y contenido responde duplicate=true; intentos=2; claves distintas usadas=1; eventos con esa clave en el historial=1; version final=3, estado=resolved"
+    },
+    {
+      "id": "same-key-different-body",
+      "status": "pass",
+      "scenarioType": "failure",
+      "command": "npx jest --testMatch '**/scripts/week-09-fault-injection.ts' --no-watchman --ci --runInBand",
+      "evidence": "POST resolve con la misma clave y diagnostico distinto: HTTP 409, code=idempotency_key_reused; version antes=3, despues=3; eventos antes=2, despues=2 (no se trata como exito ni se aplica)"
+    }
+  ]
+}

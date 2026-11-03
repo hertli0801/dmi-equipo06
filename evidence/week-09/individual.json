@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "week": 9,
+  "teamId": "10A-E06",
+  "members": [
+    {
+      "studentId": "3523110817",
+      "commitShas": [
+        "7e77e7e940ffae8b2772bc612c3ac3be946a0b0a"
+      ],
+      "files": [
+        "src/course-evaluation/index.ts",
+        "src/domain/location/selectIncidentLocation.ts",
+        "src/domain/location/GeocodingProvider.ts",
+        "src/infrastructure/geocoding/HttpGeocodingAdapter.ts",
+        "src/infrastructure/geocoding/NominatimGeocodingAdapter.ts",
+        "src/application/location/GeocodingCache.ts",
+        "src/application/location/lookupIncidentLocation.ts",
+        "scripts/week-09-geocoding-live.ts",
+        "docs/resilience-policy.md"
+      ],
+      "tests": [
+        "course-tests/public/week-09.test.ts",
+        "src/domain/location/__tests__/selectIncidentLocation.test.ts",
+        "src/infrastructure/geocoding/__tests__/HttpGeocodingAdapter.backend.test.ts",
+        "src/infrastructure/geocoding/__tests__/NominatimGeocodingAdapter.test.ts",
+        "src/application/location/__tests__/lookupIncidentLocation.test.ts"
+      ],
+      "reviews": [],
+      "prediction": "Esperaba que selectIncidentLocation aceptara 0,0 (el test publico lo usa, por eso no valide con !latitude) y que regresara la etiqueta manual sin coordenadas ante null, {status:429}, incompleta, NaN, Infinity, coordenadas como texto, fuera de rango, arreglo o label solo con espacios. Esperaba que el adaptador HTTP nunca lanzara: slow con timeout de 300 ms abortaria antes de los 1200 ms del doble, rate_limited traeria Retry-After=1 s convertido a 1000 ms y un puerto cerrado se veria como timeout. Al principio supuse que un fallo persistente se detendria en 3 intentos.",
+      "command": "npx jest src/domain/location src/application/location src/infrastructure/geocoding src/application/resilience course-tests/public/week-09.test.ts --no-watchman --ci --runInBand && npx tsc --noEmit && npm run lint && node tools/check-architecture-boundaries.mjs && make verify-week-09 && LIVE_GEOCODING=1 npx jest --testMatch '**/scripts/week-09-geocoding-live.ts' --no-watchman --ci --runInBand",
+      "observedResult": "6 suites y 64 pruebas aprobadas. Los 4 tests publicos de la semana 9 pasan, incluido el de selectIncidentLocation, que era el unico que fallaba. Contra el backend real del curso: success da ubicacion del proveedor; incomplete, invalid_coordinates y malformed dan ubicacion manual; rate_limited da {status:429, retryAfterMs:1000}; server_error da {status:500}; slow da timeout en menos de 1000 ms; un puerto cerrado da timeout sin excepcion. Mi prediccion de 3 intentos fallo: la prueba recibio 4 llamadas. 'No reintentar desde el intento 4' significa que el intento 4 ocurre y ya no se reintenta, asi que son 4 intentos con esperas de 500, 1000 y 2000 ms. Corregi la prueba, no el codigo. Un 429 transitorio espera exactamente 1000 ms. Un Retry-After de 120 s (mayor al tope) no se acorta y se deja de reintentar tras 1 llamada. La 2.a consulta igual no llama a la red. Con TTL de 1000 ms, en t=999 sale de la cache y en t=1000 vuelve al proveedor. Incompleta, invalida, malformada y 422 no se guardan (cache.size=0). Suite completa (src + publicas 8 y 9): 25 suites y 203 pruebas aprobadas. tsc OK, lint sin errores, limites de arquitectura PASS y make verify-week-09 con status pass. Ejecucion real contra OpenStreetMap Nominatim (2026-11-03T03:03:13Z): 1 intento, 2xx, 679 ms, coordenadas validas: si, y la 2.a consulta salio de la cache. No se registraron consulta ni coordenadas.",
+      "explanation": "Separe la geocodificacion en un puerto de dominio (GeocodingProvider) que hace un solo intento por llamada y nunca lanza. Hay dos adaptadores de infraestructura con el mismo contrato: el doble controlado del curso (GET /v1/geocoding con Authorization y X-Course-Actor, timeout de 3000 ms con AbortController, Retry-After convertido a ms) y Nominatim como proveedor real sin credenciales con User-Agent propio. Los reintentos no viven en el adaptador: createLocationLookup usa retryWithPolicy de Lilia con method GET, asi que los limites, Retry-After y backoff salen de una sola politica configurable. La cache con TTL usa la consulta normalizada como llave y solo guarda ubicaciones ya validadas por parseProviderLocation; si guardara errores o null, un fallo pasajero quedaria pegado durante todo el TTL. selectIncidentLocation vive en dominio y el adaptador de course-evaluation solo delega, para que la app y el test publico usen la misma logica. Si el proveedor no sirve, createLocationLookup devuelve null y la UI de Oscar sigue con la ubicacion escrita, sin inventar coordenadas. Las pruebas de fallos usan el doble y nunca el proveedor real, para no depender de su cuota de 1 req/s; la ejecucion real es un script aparte que solo corre con LIVE_GEOCODING=1. Use asistencia de IA (Claude Code) para redactar codigo, pruebas y la documentacion de las secciones 1-3 de resilience-policy.md. Lo verifique corriendo cada suite contra el backend real del curso, revisando la prediccion de 3 intentos que fallo y haciendo una sola ejecucion real con salida sanitizada."
+    },
+    {
+      "studentId": "3523110560",
+      "commitShas": [
+        "de44f214f457cee5364945350b1b122f7266c571",
+        "74c6309a95e0a6f4b2e96779da11b4286c7833d8",
+        "e154d816e5fe4e39b12cb159a29580f2932ada8c"
+      ],
+      "files": [
+        "src/course-evaluation/index.ts",
+        "src/application/resilience/retryWithPolicy.ts",
+        "scripts/week-09-collect.ts",
+        "docs/resilience-policy.md"
+      ],
+      "tests": [
+        "src/course-evaluation/__tests__/planRetry.test.ts",
+        "src/application/resilience/__tests__/retryWithPolicy.test.ts",
+        "scripts/week-09-collect.ts"
+      ],
+      "reviews": [
+        "PR #26 (feat/semana-9-integracion-c): descargué la rama y corrí tsc, lint, check-architecture-boundaries y la suite completa de jest. Las pruebas de la semana 9 pasan; solo fallan los tests públicos de las semanas 10 a 13, que son tareas futuras. Revisé con grep que el fault-injection.json generado no contuviera coordenadas, tokens ni contraseñas (sin resultados)."
+      ],
+      "prediction": "Antes de correr scripts/week-09-collect.ts esperaba: (1) con rate_limited, una espera de 1000 ms (Retry-After de 1 s) y éxito en el segundo intento; (2) con server_error persistente, exactamente 4 solicitudes con esperas planificadas de 500, 1000 y 2000 ms y luego rendirse, sin un quinto intento; (3) un POST sin clave de idempotencia con 1 sola solicitud y 0 esperas; (4) con timeout_after_commit, que el servidor guardara el cambio aunque el cliente abortara a los 500 ms, que el reintento con la misma clave y contenido devolviera duplicate:true y que el historial tuviera un solo evento resolve; (5) la misma clave con contenido distinto debía dar 409 sin reintento ni eventos nuevos.",
+      "command": "npx jest --testMatch '**/scripts/week-09-collect.ts' --no-watchman --ci --runInBand",
+      "observedResult": "Sobre el SHA 38e3adc6f01cd57c7a9b708c351f6a6f25d691bd los 5 checks de retry-metrics.json salieron en pass y coincidieron con la predicción: Retry-After de 1 s respetado con éxito en el intento 2; 4 solicitudes máximo con 500 persistente; POST sin clave con 1 solicitud y sin esperas; respuesta perdida con la misma clave en los dos intentos, duplicate:true y un solo evento resolve; y misma clave con contenido distinto con 409, sin reintento y sin eventos nuevos. make verify-week-09 dio pass y los 4 tests públicos de la semana 9 pasan. Dos tropiezos reales: mis primeras pruebas de planRetry no compilaron con tsc por exactOptionalPropertyTypes (pasaba undefined a propiedades opcionales) y lo corregí en las pruebas, no en el código; y make public-test-week-09 falló antes de generar las evidencias porque faltaban fault-injection.json, engineering.json e individual.json y mi retry-metrics.json tenía el SHA anterior, así que lo regeneré con el SHA final.",
+      "explanation": "Qué hice: implementé planRetry con una política configurable (noRetryFromAttempt, baseDelayMs, maxDelayMs): reintenta timeout, 408, 429 y 5xx; no reintenta 4xx; un POST sin clave estable no se reintenta; respeta un Retry-After válido y, si excede el tope de 30 s, no lo acorta y deja de reintentar; si es inválido usa backoff exponencial con tope. Sobre eso escribí retryWithPolicy, un ejecutor con bucle acotado, la misma clave en todos los intentos, sleep y reloj inyectables y un registro por intento (resultado, duración, espera planificada). Escribí scripts/week-09-collect.ts, que levanta el backend del curso en un puerto libre y ejecuta los escenarios con esperas reales para generar retry-metrics.json a partir de lo observado, y las secciones 4 y 6 de docs/resilience-policy.md. Por qué: un timeout no prueba que el servidor no ejecutó la operación, por eso un POST solo se reintenta con clave estable y mismo contenido; el sleep inyectable permite probar los límites sin esperar de verdad. Cómo lo verifiqué: tsc, lint, la revisión de arquitectura, jest, make verify-week-09 y los scripts contra el backend real, leyendo los números del reporte en vez de aceptarlos. Ayuda de IA: usé asistentes de IA (Claude y otro asistente) para redactar el código, las pruebas, el script y el borrador de la documentación; no acepté nada sin ejecutarlo y puedo explicar cada decisión de la política."
+    },
+    {
+      "studentId": "3523110151",
+      "commitShas": [
+        "cab502853bf32f50c751ebdafe53015649d82c66"
+      ],
+      "files": [
+        "src/application/sync/__test__/lostResponse.test.ts",
+        "src/ui/screens/CreateIncidentScreen.tsx",
+        "src/ui/screens/__tests__/CreateIncidentScreen.test.tsx",
+        "App.tsx",
+        "docs/resilience-policy.md",
+        "scripts/week-09-fault-injection.ts"
+      ],
+      "tests": [
+        "src/application/sync/__test__/lostResponse.test.ts",
+        "src/ui/screens/__tests__/CreateIncidentScreen.test.tsx"
+      ],
+      "reviews": [],
+      "prediction": "Esperaba que, si el cliente aborta por timeout despues de que el servidor ya guardo la resolucion, la operacion siguiera en la cola de la semana 8; que reenviarla con la misma clave (operationId) y el mismo contenido devolviera duplicate:true sin agregar eventos; y que reutilizar la clave con otro contenido diera 409. Tambien esperaba que la pantalla de crear incidencia siguiera funcionando con ubicacion manual cuando el proveedor de ubicacion fallara o tardara.",
+      "command": "npx jest src/application/sync/__test__/lostResponse.test.ts src/ui/screens/__tests__/CreateIncidentScreen.test.tsx --no-watchman --ci --runInBand",
+      "observedResult": "Con el backend real en el escenario timeout_after_commit y timeout de cliente de 300 ms: la operacion quedo pendiente en la cola; el reenvio con la misma clave se confirmo y salio de la cola; el servidor quedo en version 3 con un solo evento para esa operacion y sin evidencias ni notas duplicadas; la misma clave con contenido distinto dio 409 idempotency_key_reused sin cambiar version ni historial. Las pruebas de la pantalla cubren proveedor caido, proveedor lento, sin ubicacion y error del repositorio con mensaje generico (6 pruebas en total). Ademas, con curl contra el backend se observo curl con codigo de salida 28, un solo evento curl-resolve-0001 en el historial, duplicate:true en el reintento y HTTP 409 con la clave reutilizada; y en Expo Go se creo una incidencia con ubicacion manual y se mostro el error generico con el backend caido.",
+      "explanation": "Escribi la prueba de respuesta perdida usando la cola SQLite y el backend real de la semana 8: un primer envio aborta por timeout y la operacion sigue en la cola, el segundo con la misma operationId se confirma y sale de la cola, y la misma clave con otro contenido devuelve 409 y no se trata como exito. Cree la pantalla CreateIncidentScreen con el campo de ubicacion manual siempre disponible: consulta al proveedor con un tope de 3 s, trata cualquier fallo como no disponible y sigue con la etiqueta manual sin bloquear la creacion; recibe findLocation y selectLocation por props y en App.tsx se conectan con createLocationLookup y selectIncidentLocation de A. Escribi la seccion 5 de docs/resilience-policy.md con los resultados de los curl y de la prueba automatizada, y el script week-09-fault-injection.ts que genera fault-injection.json con 10 casos reales. Use Claude (asistente de IA) como apoyo para estructurar la prueba, la pantalla, el script y el borrador de la seccion 5; corri y verifique los resultados yo mismo y puedo explicar lo que entrego."
+    }
+  ]
+}
