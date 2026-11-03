@@ -3,9 +3,12 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 
 import { getBackendHealth } from './src/api/courseBackend';
+import { createLocationLookup } from './src/application/location/lookupIncidentLocation';
 import { performOrEnqueue, withLocalCache } from './src/application/sync/performOrEnqueue';
 import { syncPendingOperations } from './src/application/sync/syncPendingOperations';
 import { createTelemetry } from './src/application/telemetry/Telemetry';
+import { selectIncidentLocation } from './src/domain/location/selectIncidentLocation';
+import { HttpGeocodingAdapter } from './src/infrastructure/geocoding/HttpGeocodingAdapter';
 import { CloudIncidentRepository } from './src/infrastructure/incidents/CloudIncidentRepository';
 import { openDeviceOfflineStore } from './src/infrastructure/persistence/openDeviceOfflineStore';
 import type { OfflineStore } from './src/infrastructure/persistence/openOfflineStore';
@@ -66,6 +69,21 @@ export default function App() {
         : null,
     [session, coordinator],
   );
+
+  // Ubicación del servicio: caché + proveedor con reintentos acotados. Nunca lanza; si falla devuelve null.
+  const findLocation = useMemo(() => {
+    if (!session) return null;
+    const baseUrl = process.env.EXPO_PUBLIC_COURSE_BACKEND_URL;
+    const token = coordinator.getAccessToken();
+    return createLocationLookup({
+      provider: new HttpGeocodingAdapter({
+        actorId: session.actorId,
+        ...(baseUrl ? { baseUrl } : {}),
+        ...(token ? { accessToken: token } : {}),
+      }),
+      telemetry,
+    });
+  }, [session, coordinator]);
 
   // Las lecturas en línea de cada incidencia dejan su versión en la copia local (SQLite):
   // sin ella no se puede encolar una acción sin conexión.
@@ -194,6 +212,8 @@ export default function App() {
           telemetry={telemetry}
           onCreated={(incident) => setRoute({ name: 'detail', incidentId: incident.id })}
           onCancel={() => setRoute({ name: 'list' })}
+          {...(findLocation ? { findLocation } : {})}
+          selectLocation={selectIncidentLocation}
         />
       ) : route.name === 'list' ? (
         <>
