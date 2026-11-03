@@ -86,7 +86,29 @@ Pruebas: `src/domain/location/__tests__/selectIncidentLocation.test.ts` (18 caso
 
 ## 4. Reglas de reintento y fallo
 
-_Pendiente (B)._
+La decisión vive en `planRetry` (`src/course-evaluation/index.ts`) y `retryWithPolicy` (`src/application/resilience/retryWithPolicy.ts`) la aplica en un bucle acotado.
+
+| Situación | Decisión |
+|---|---|
+| Timeout, sin red, 408, 429 o 5xx | Se reintenta |
+| 400, 401, 403, 404, 409, 422 y cualquier otro estado | No se reintenta; se informa el fallo |
+| POST sin clave de idempotencia (vacía o con espacios) | No se reintenta |
+| POST con clave estable | Se reintenta con la misma clave y el mismo contenido |
+| `Retry-After` válido (finito y ≥ 0) dentro del tope | Se espera exactamente ese tiempo |
+| `Retry-After` mayor al tope (30 s) | No se acorta ni se reintenta; se informa y se usa la alternativa |
+| `Retry-After` inválido (negativo, NaN, infinito) | Se ignora y se usa el backoff |
+| Backoff | `base · 2^(intento−1)` con tope: 500, 1000 y 2000 ms |
+| Límite | Desde el intento 4 no se reintenta: como máximo 4 solicitudes |
+
+**Configuración.** `RetryPolicy` tiene `noRetryFromAttempt` (4), `baseDelayMs` (500) y `maxDelayMs` (30 000). `retryWithPolicy` acepta una política distinta, un `sleep` y un reloj inyectables, por lo que los límites se comprueban en pruebas sin esperar.
+
+**Por qué un POST necesita clave.** Un timeout no prueba que el servidor no ejecutó la operación. Reenviar con la misma clave y contenido devuelve el resultado ya guardado (`duplicate: true`) y no duplica eventos. Con la misma clave y contenido distinto el servidor responde 409, que no se reintenta ni se trata como éxito.
+
+**Por qué no se acorta un `Retry-After` excesivo.** Reintentar antes de lo que pide el servicio lo saturaría y podría agravar el bloqueo. Si el tiempo pedido supera el tope, se deja de reintentar y se informa al usuario.
+
+**Alternativas descartadas.** Reintento infinito (satura y puede duplicar), no reintentar nunca (mala experiencia con fallos pasajeros), reintentar POST sin clave (duplica efectos) y demora fija (golpea al servicio).
+
+**Evidencia.** `reports/week-09/retry-metrics.json`, generado por `scripts/week-09-collect.ts` contra el backend del curso con esperas reales.
 
 ## 5. Respuesta perdida e idempotencia
 
@@ -94,6 +116,10 @@ _Pendiente (C)._
 
 ## 6. Qué se registra y qué se oculta
 
-_Pendiente (B)._ Aporte de la parte de ubicación: el evento `geocoding.lookup` sólo registra `provider`, `outcome`
+`retryWithPolicy` registra por intento el evento `retry.attempt` con el número de intento, el resultado (`ok`, estado HTTP o `timeout`), la duración en milisegundos y si se reintentará.
+
+No se registra la URL, la consulta, cabeceras, el cuerpo de la solicitud o respuesta, ubicaciones, coordenadas, tokens ni identificadores de usuario. Las claves de idempotencia de los reportes son sintéticas (por ejemplo `resolve-campus-inc-001-op-1`) y el registro de intentos no las incluye.
+
+Aporte de la parte de ubicación: el evento `geocoding.lookup` sólo registra `provider`, `outcome`
 (`cache_hit`, `valid`, `invalid_or_incomplete`, `gave_up`, `not_retryable`), `status`, `attempt` y `durationMs`; nunca la consulta,
 el `label` ni coordenadas (prueba: "los logs no llevan consulta ni coordenadas").
