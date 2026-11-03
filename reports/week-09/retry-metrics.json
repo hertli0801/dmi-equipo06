@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "week": 9,
+  "commitSha": "38e3adc6f01cd57c7a9b708c351f6a6f25d691bd",
+  "generatedAt": "2026-11-03T04:20:06.498Z",
+  "policy": {
+    "noRetryFromAttempt": 4,
+    "baseDelayMs": 500,
+    "maxDelayMs": 30000
+  },
+  "checks": [
+    {
+      "id": "rate-limited-retry-after-honored",
+      "status": "pass",
+      "scenarioType": "failure",
+      "command": "npx jest --testMatch '**/scripts/week-09-collect.ts' --no-watchman --ci --runInBand",
+      "evidence": "GET con X-Course-Scenario=rate_limited: intento 1=429 con Retry-After de 1 s; espera planificada 1000 ms, observada 1001 ms; intento 2 sin falla; resultado=success; solicitudes=2",
+      "maxAttemptsPolicy": 4,
+      "idempotencyKey": null,
+      "attempts": [
+        {
+          "attempt": 1,
+          "result": 429,
+          "plannedDelayMs": 1000,
+          "observedDelayMs": 1001,
+          "requestMs": 11
+        },
+        {
+          "attempt": 2,
+          "result": "ok",
+          "plannedDelayMs": null,
+          "observedDelayMs": null,
+          "requestMs": 3
+        }
+      ]
+    },
+    {
+      "id": "server-error-attempt-limit",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "command": "npx jest --testMatch '**/scripts/week-09-collect.ts' --no-watchman --ci --runInBand",
+      "evidence": "GET con X-Course-Scenario=server_error: 4 solicitudes (limite 4); esperas planificadas 500/1000/2000/ ms, observadas 501/1002/2001 ms; resultado=gave_up sin intento 5",
+      "maxAttemptsPolicy": 4,
+      "idempotencyKey": null,
+      "attempts": [
+        {
+          "attempt": 1,
+          "result": 500,
+          "plannedDelayMs": 500,
+          "observedDelayMs": 501,
+          "requestMs": 1
+        },
+        {
+          "attempt": 2,
+          "result": 500,
+          "plannedDelayMs": 1000,
+          "observedDelayMs": 1002,
+          "requestMs": 2
+        },
+        {
+          "attempt": 3,
+          "result": 500,
+          "plannedDelayMs": 2000,
+          "observedDelayMs": 2001,
+          "requestMs": 3
+        },
+        {
+          "attempt": 4,
+          "result": 500,
+          "plannedDelayMs": null,
+          "observedDelayMs": null,
+          "requestMs": 4
+        }
+      ]
+    },
+    {
+      "id": "post-without-key-no-retry",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "command": "npx jest --testMatch '**/scripts/week-09-collect.ts' --no-watchman --ci --runInBand",
+      "evidence": "POST sin Idempotency-Key con fallo 500: 1 solicitud, 0 esperas, resultado=gave_up",
+      "maxAttemptsPolicy": 4,
+      "idempotencyKey": null,
+      "attempts": [
+        {
+          "attempt": 1,
+          "result": 500,
+          "plannedDelayMs": null,
+          "observedDelayMs": null,
+          "requestMs": 3
+        }
+      ]
+    },
+    {
+      "id": "lost-response-same-key-no-duplicates",
+      "status": "pass",
+      "scenarioType": "failure",
+      "command": "npx jest --testMatch '**/scripts/week-09-collect.ts' --no-watchman --ci --runInBand",
+      "evidence": "POST resolve con X-Course-Scenario=timeout_after_commit: intento 1 abortado por timeout del cliente (500 ms) tras guardar; intento 2 con la misma clave y contenido respondio duplicate=true; eventos con esa clave en el historial=1; eventos resolve totales=1",
+      "maxAttemptsPolicy": 4,
+      "idempotencyKey": "resolve-campus-inc-001-op-1",
+      "attempts": [
+        {
+          "attempt": 1,
+          "result": "timeout",
+          "plannedDelayMs": 500,
+          "observedDelayMs": 501,
+          "requestMs": 502
+        },
+        {
+          "attempt": 2,
+          "result": "ok",
+          "plannedDelayMs": null,
+          "observedDelayMs": null,
+          "requestMs": 3
+        }
+      ]
+    },
+    {
+      "id": "same-key-different-body-409-no-retry",
+      "status": "pass",
+      "scenarioType": "boundary",
+      "command": "npx jest --testMatch '**/scripts/week-09-collect.ts' --no-watchman --ci --runInBand",
+      "evidence": "POST con la misma clave y diagnostico distinto: estado 409, 1 solicitud, resultado=not_retryable; eventos con esa clave siguen en 1",
+      "maxAttemptsPolicy": 4,
+      "idempotencyKey": "resolve-campus-inc-001-op-1",
+      "attempts": [
+        {
+          "attempt": 1,
+          "result": 409,
+          "plannedDelayMs": null,
+          "observedDelayMs": null,
+          "requestMs": 2
+        }
+      ]
+    }
+  ]
+}
